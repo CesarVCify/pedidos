@@ -21,6 +21,8 @@ def cargar_hoja(sheet_id):
         st.error(f"Error al cargar la hoja con ID {sheet_id}: {e}")
         return pd.DataFrame()
 
+# Reemplazar valores nulos en la columna "Proveedor"
+pedidos_df["Proveedor"] = pedidos_df["Proveedor"].fillna("Desconocido")
 # Cargar datos iniciales
 st.title("Gestión de Pedidos - Editar Pedidos")
 st.info("Los productos solo pueden seleccionarse del catálogo cargado desde Google Sheets.")
