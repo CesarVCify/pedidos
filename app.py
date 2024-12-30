@@ -21,6 +21,9 @@ def cargar_hoja(sheet_id):
         st.error(f"Error al cargar la hoja con ID {sheet_id}: {e}")
         return pd.DataFrame()
 
+# Cargar datos iniciales
+st.title("Gestión de Pedidos - Editar Pedidos")
+st.info("Los productos solo pueden seleccionarse del catálogo cargado desde Google Sheets.")
 
 pedidos_df = cargar_hoja(ID_PEDIDOS)
 catalogo_df = cargar_hoja(ID_CATALOGO)
@@ -37,8 +40,35 @@ if faltantes:
     st.error(f"Faltan las siguientes columnas en la hoja de pedidos: {faltantes}")
     st.stop()
 
+# Reemplazar valores nulos en "Proveedor"
+pedidos_df["Proveedor"] = pedidos_df["Proveedor"].fillna("Desconocido")
+
+# Función para limpiar cantidades solicitadas
+def limpiar_cantidades(df):
+    df["Cantidad Solicitada"] = 0  # Reinicia todas las cantidades a 0
+    return df
+
+# Función para actualizar precios unitarios desde el catálogo
+def actualizar_precios(df_pedidos, df_catalogo):
+    precios = dict(zip(df_catalogo["Producto"], df_catalogo["Precio Unitario"]))
+    df_pedidos["Precio Unitario"] = df_pedidos["Producto"].map(precios)
+    df_pedidos["Precio Unitario"] = df_pedidos["Precio Unitario"].fillna(0.01)  # Valor predeterminado si no hay precio
+    return df_pedidos
+
+# Botón para limpiar datos
+if st.button("Limpiar Cantidades Solicitadas"):
+    pedidos_df = limpiar_cantidades(pedidos_df)
+    st.success("¡Cantidad solicitada reiniciada a 0 para todos los productos!")
+
+# Botón para actualizar precios
+if st.button("Actualizar Precios desde Catálogo"):
+python
+Copiar código
+    pedidos_df = actualizar_precios(pedidos_df, catalogo_df)
+    st.success("¡Precios unitarios actualizados desde el catálogo!")
+
 # Reemplazar valores inválidos
-pedidos_df["Cantidad Solicitada"] = pedidos_df["Cantidad Solicitada"].apply(lambda x: max(x, 1) if pd.notnull(x) else 1)
+pedidos_df["Cantidad Solicitada"] = pedidos_df["Cantidad Solicitada"].apply(lambda x: max(x, 0) if pd.notnull(x) else 0)
 pedidos_df["Precio Unitario"] = pedidos_df["Precio Unitario"].apply(lambda x: max(x, 0.01) if pd.notnull(x) else 0.01)
 
 # Restringir productos al catálogo
@@ -65,7 +95,7 @@ for proveedor in proveedores:
             cantidad = st.number_input(
                 "Cantidad Solicitada",
                 value=row["Cantidad Solicitada"],
-                min_value=1,
+                min_value=0,
                 key=f"cantidad_{index}"
             )
             # Unidad
