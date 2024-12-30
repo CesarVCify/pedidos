@@ -14,7 +14,9 @@ def cargar_hoja(sheet_id):
     """Carga datos desde una hoja pública de Google Sheets."""
     url = obtener_url_publica(sheet_id)
     try:
-        return pd.read_csv(url)
+        df = pd.read_csv(url)
+        df.columns = [col.strip() for col in df.columns]  # Limpia espacios en los encabezados
+        return df
     except Exception as e:
         st.error(f"Error al cargar la hoja con ID {sheet_id}: {e}")
         return pd.DataFrame()
@@ -28,6 +30,14 @@ catalogo_df = cargar_hoja(ID_CATALOGO)
 
 if pedidos_df.empty or catalogo_df.empty:
     st.warning("No se pudieron cargar los datos. Verifica que las hojas sean públicas y los IDs sean correctos.")
+    st.stop()
+
+# Validar columnas requeridas
+columnas_requeridas = ["Producto", "Cantidad Solicitada", "Unidad", "Precio Unitario", "Total"]
+faltantes = [col for col in columnas_requeridas if col not in pedidos_df.columns]
+
+if faltantes:
+    st.error(f"Faltan las siguientes columnas en la hoja de pedidos: {faltantes}")
     st.stop()
 
 # Reemplazar valores inválidos
