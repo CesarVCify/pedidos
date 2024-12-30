@@ -121,15 +121,15 @@ for proveedor in proveedores:
 st.subheader("Pedidos actualizados")
 st.dataframe(pedidos_df)
 
-# Descargar pedidos actualizados
+# Descargar pedidos actualizados (excluyendo productos con cantidad 0)
 if st.button("Descargar pedidos"):
+    pedidos_filtrados = pedidos_df[pedidos_df["Cantidad Solicitada"] > 0]  # Excluir productos con cantidad 0
     fecha_actual = datetime.now().strftime('%Y-%m-%d')
     nombre_csv = f"Pedidos_Actualizados_{fecha_actual}.csv"
     st.download_button(
         label="Descargar CSV",
-        data=pedidos_df.to_csv(index=False).encode("utf-8"),
+        data=pedidos_filtrados.to_csv(index=False).encode("utf-8"),
         file_name=nombre_csv,
         mime="text/csv",
     )
-
 
