@@ -30,6 +30,10 @@ if pedidos_df.empty or catalogo_df.empty:
     st.warning("No se pudieron cargar los datos. Verifica que las hojas sean públicas y los IDs sean correctos.")
     st.stop()
 
+# Reemplazar valores inválidos
+pedidos_df["Cantidad Solicitada"] = pedidos_df["Cantidad Solicitada"].apply(lambda x: max(x, 1) if pd.notnull(x) else 1)
+pedidos_df["Precio Unitario"] = pedidos_df["Precio Unitario"].apply(lambda x: max(x, 0.01) if pd.notnull(x) else 0.01)
+
 # Restringir productos al catálogo
 productos_existentes = catalogo_df["Producto"].tolist()
 
