@@ -1,64 +1,63 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
-import gspread
-from google.oauth2.service_account import Credentials
 
-# Configuración para Google Sheets
-USAR_GOOGLE_SHEETS = True  # Cambia a False si no usas Google Sheets
+# Configuración de los IDs de las hojas de Google Sheets
+ID_PEDIDOS = "106heHrtrvtaBVl13lvhqUzXlhLF7c3NFrbANXO1-FJk"
+ID_CATALOGO = "1ERtd0fm2FY8-Pm72J3kl8J05T2ryG_fR91kOfPlPrfQ"
 
-if USAR_GOOGLE_SHEETS:
-    # Configuración de credenciales desde secretos seguros
-    import json
-    creds = json.loads(st.secrets["google_credentials"])  # Usa st.secrets en Streamlit Cloud
-    gc = gspread.service_account_from_dict(creds)
-    sheet = gc.open_by_key("TU_ID_DE_HOJA").sheet1  # Reemplaza con el ID de tu hoja de pedidos
-    catalogo_sheet = gc.open_by_key("TU_ID_DE_CATALOGO").sheet1  # Reemplaza con el ID de tu hoja de catálogo
+def obtener_url_publica(sheet_id):
+    """Genera la URL de exportación pública de una hoja de Google Sheets."""
+    return f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv"
+
+def cargar_hoja(sheet_id):
+    """Carga datos desde una hoja pública de Google Sheets."""
+    url = obtener_url_publica(sheet_id)
+    try:
+        return pd.read_csv(url)
+    except Exception as e:
+        st.error(f"Error al cargar la hoja con ID {sheet_id}: {e}")
+        return pd.DataFrame()
 
 # Cargar datos iniciales
-if USAR_GOOGLE_SHEETS:
-    pedidos_df = pd.DataFrame(sheet.get_all_records())
-    catalogo_df = pd.DataFrame(catalogo_sheet.get_all_records())
-else:
-    # Datos simulados
-    pedidos_df = pd.DataFrame({
-        "Producto": ["Café", "Té", "Pan"],
-        "Cantidad Solicitada": [10, 5, 20],
-        "Unidad": ["kg", "kg", "piezas"],
-        "Precio Unitario": [150, 100, 15],
-        "Total": [1500, 500, 300],
-    })
-    catalogo_df = pd.DataFrame({"Producto": ["Café", "Té", "Pan"]})
-
-# Título de la aplicación
 st.title("Gestión de Pedidos - Editar Pedidos")
+st.info("Los productos solo pueden seleccionarse del catálogo cargado desde Google Sheets.")
 
-# Obtener lista de productos del catálogo
+pedidos_df = cargar_hoja(ID_PEDIDOS)
+catalogo_df = cargar_hoja(ID_CATALOGO)
+
+if pedidos_df.empty or catalogo_df.empty:
+    st.warning("No se pudieron cargar los datos. Verifica que las hojas sean públicas y los IDs sean correctos.")
+    st.stop()
+
+# Restringir productos al catálogo
 productos_existentes = catalogo_df["Producto"].tolist()
 
-# Mostrar y editar los pedidos
+# Mostrar y editar pedidos
 st.subheader("Editar pedidos")
 for index, row in pedidos_df.iterrows():
     with st.expander(f"Editar Pedido: {row['Producto']}"):
-        # Campo Producto (solo seleccionable del catálogo)
+        # Producto (solo seleccionable desde el catálogo)
         producto = st.selectbox(
             "Producto",
             options=productos_existentes,
-            index=productos_existentes.index(row["Producto"]),
+            index=productos_existentes.index(row["Producto"]) if row["Producto"] in productos_existentes else 0,
             key=f"producto_{index}"
         )
-        # Campos editables
+        # Cantidad
         cantidad = st.number_input(
             "Cantidad Solicitada",
             value=row["Cantidad Solicitada"],
             min_value=1,
             key=f"cantidad_{index}"
         )
+        # Unidad
         unidad = st.text_input(
             "Unidad",
             value=row["Unidad"],
             key=f"unidad_{index}"
         )
+        # Precio Unitario
         precio_unitario = st.number_input(
             "Precio Unitario",
             value=row["Precio Unitario"],
@@ -77,14 +76,7 @@ for index, row in pedidos_df.iterrows():
 st.subheader("Pedidos actualizados")
 st.dataframe(pedidos_df)
 
-# Guardar cambios en Google Sheets
-if st.button("Guardar cambios"):
-    if USAR_GOOGLE_SHEETS:
-        sheet.clear()  # Limpia la hoja antes de guardar los datos
-        sheet.update([pedidos_df.columns.values.tolist()] + pedidos_df.values.tolist())
-        st.success("Datos guardados en Google Sheets.")
-
-# Descargar los pedidos actualizados
+# Descargar pedidos actualizados
 if st.button("Descargar pedidos"):
     fecha_actual = datetime.now().strftime('%Y-%m-%d')
     nombre_csv = f"Pedidos_Actualizados_{fecha_actual}.csv"
