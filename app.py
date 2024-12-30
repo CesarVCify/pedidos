@@ -8,80 +8,89 @@ from google.oauth2.service_account import Credentials
 USAR_GOOGLE_SHEETS = True  # Cambia a False si no usas Google Sheets
 
 if USAR_GOOGLE_SHEETS:
-    # Credenciales para Google Sheets (usa tu archivo JSON o st.secrets en Streamlit Cloud)
-    creds = {
-        "type": "service_account",
-        "project_id": "tu_project_id",
-        "private_key_id": "tu_private_key_id",
-        "private_key": "-----BEGIN PRIVATE KEY-----\ntu_clave_privada\n-----END PRIVATE KEY-----\n",
-        "client_email": "tu_email_de_servicio@tu_proyecto.iam.gserviceaccount.com",
-        "client_id": "tu_client_id",
-        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-        "token_uri": "https://oauth2.googleapis.com/token",
-        "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-        "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/tu_email_de_servicio%40tu_proyecto.iam.gserviceaccount.com",
-    }
+    # Configuración de credenciales desde secretos seguros
+    import json
+    creds = json.loads(st.secrets["google_credentials"])  # Usa st.secrets en Streamlit Cloud
     gc = gspread.service_account_from_dict(creds)
-    sheet = gc.open_by_key("TU_ID_DE_HOJA").sheet1  # Reemplaza con el ID de tu hoja
+    sheet = gc.open_by_key("TU_ID_DE_HOJA").sheet1  # Reemplaza con el ID de tu hoja de pedidos
+    catalogo_sheet = gc.open_by_key("TU_ID_DE_CATALOGO").sheet1  # Reemplaza con el ID de tu hoja de catálogo
 
 # Cargar datos iniciales
 if USAR_GOOGLE_SHEETS:
     pedidos_df = pd.DataFrame(sheet.get_all_records())
+    catalogo_df = pd.DataFrame(catalogo_sheet.get_all_records())
 else:
     # Datos simulados
-    data = {
+    pedidos_df = pd.DataFrame({
         "Producto": ["Café", "Té", "Pan"],
         "Cantidad Solicitada": [10, 5, 20],
         "Unidad": ["kg", "kg", "piezas"],
         "Precio Unitario": [150, 100, 15],
         "Total": [1500, 500, 300],
-    }
-    pedidos_df = pd.DataFrame(data)
+    })
+    catalogo_df = pd.DataFrame({"Producto": ["Café", "Té", "Pan"]})
 
 # Título de la aplicación
 st.title("Gestión de Pedidos - Editar Pedidos")
 
-# Mostrar la tabla inicial con un editor interactivo
-st.subheader("Pedidos actuales")
-edited_df = st.data_editor(
-    pedidos_df,
-    num_rows="dynamic",  # Permite agregar o eliminar filas
-    use_container_width=True,
-)
+# Obtener lista de productos del catálogo
+productos_existentes = catalogo_df["Producto"].tolist()
 
-# Validación de datos
-valido = True
-if st.button("Validar y Actualizar Totales"):
-    for i, row in edited_df.iterrows():
-        if row["Cantidad Solicitada"] <= 0 or row["Precio Unitario"] <= 0:
-            valido = False
-            st.error(
-                f"Error en la fila {i+1}: Cantidad y Precio deben ser positivos."
-            )
-            break
-
-    if valido:
-        # Calcular los totales actualizados
-        edited_df["Total"] = (
-            edited_df["Cantidad Solicitada"] * edited_df["Precio Unitario"]
+# Mostrar y editar los pedidos
+st.subheader("Editar pedidos")
+for index, row in pedidos_df.iterrows():
+    with st.expander(f"Editar Pedido: {row['Producto']}"):
+        # Campo Producto (solo seleccionable del catálogo)
+        producto = st.selectbox(
+            "Producto",
+            options=productos_existentes,
+            index=productos_existentes.index(row["Producto"]),
+            key=f"producto_{index}"
         )
-        st.success("Datos validados y totales actualizados.")
-        st.write(edited_df)
+        # Campos editables
+        cantidad = st.number_input(
+            "Cantidad Solicitada",
+            value=row["Cantidad Solicitada"],
+            min_value=1,
+            key=f"cantidad_{index}"
+        )
+        unidad = st.text_input(
+            "Unidad",
+            value=row["Unidad"],
+            key=f"unidad_{index}"
+        )
+        precio_unitario = st.number_input(
+            "Precio Unitario",
+            value=row["Precio Unitario"],
+            min_value=0.01,
+            key=f"precio_{index}"
+        )
 
-        # Guardar en Google Sheets si está habilitado
-        if USAR_GOOGLE_SHEETS:
-            sheet.clear()  # Limpia la hoja antes de guardar los datos
-            sheet.update([edited_df.columns.values.tolist()] + edited_df.values.tolist())
-            st.success("Datos guardados en Google Sheets.")
+        # Actualizar valores en el DataFrame
+        pedidos_df.at[index, "Producto"] = producto
+        pedidos_df.at[index, "Cantidad Solicitada"] = cantidad
+        pedidos_df.at[index, "Unidad"] = unidad
+        pedidos_df.at[index, "Precio Unitario"] = precio_unitario
+        pedidos_df.at[index, "Total"] = cantidad * precio_unitario
 
-# Botón para descargar los datos
-st.subheader("Descargar datos")
-if st.button("Descargar CSV"):
+# Mostrar la tabla actualizada
+st.subheader("Pedidos actualizados")
+st.dataframe(pedidos_df)
+
+# Guardar cambios en Google Sheets
+if st.button("Guardar cambios"):
+    if USAR_GOOGLE_SHEETS:
+        sheet.clear()  # Limpia la hoja antes de guardar los datos
+        sheet.update([pedidos_df.columns.values.tolist()] + pedidos_df.values.tolist())
+        st.success("Datos guardados en Google Sheets.")
+
+# Descargar los pedidos actualizados
+if st.button("Descargar pedidos"):
     fecha_actual = datetime.now().strftime('%Y-%m-%d')
     nombre_csv = f"Pedidos_Actualizados_{fecha_actual}.csv"
     st.download_button(
         label="Descargar CSV",
-        data=edited_df.to_csv(index=False).encode("utf-8"),
+        data=pedidos_df.to_csv(index=False).encode("utf-8"),
         file_name=nombre_csv,
         mime="text/csv",
     )
