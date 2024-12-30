@@ -1,6 +1,3 @@
-    pedidos_df = actualizar_precios(pedidos_df, catalogo_df)
-    st.success("¡Precios unitarios actualizados desde el catálogo!")
-
 # Reemplazar valores inválidos
 pedidos_df["Cantidad Solicitada"] = pedidos_df["Cantidad Solicitada"].apply(lambda x: max(x, 0) if pd.notnull(x) else 0)
 pedidos_df["Precio Unitario"] = pedidos_df["Precio Unitario"].apply(lambda x: max(x, 0.01) if pd.notnull(x) else 0.01)
