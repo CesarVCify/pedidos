@@ -33,7 +33,7 @@ if pedidos_df.empty or catalogo_df.empty:
     st.stop()
 
 # Validar columnas requeridas
-columnas_requeridas = ["Producto", "Cantidad Solicitada", "Unidad", "Precio Unitario", "Total"]
+columnas_requeridas = ["Producto", "Cantidad Solicitada", "Unidad", "Precio Unitario", "Total", "Proveedor"]
 faltantes = [col for col in columnas_requeridas if col not in pedidos_df.columns]
 
 if faltantes:
@@ -47,44 +47,50 @@ pedidos_df["Precio Unitario"] = pedidos_df["Precio Unitario"].apply(lambda x: ma
 # Restringir productos al catálogo
 productos_existentes = catalogo_df["Producto"].tolist()
 
-# Mostrar y editar pedidos
-st.subheader("Editar pedidos")
-for index, row in pedidos_df.iterrows():
-    with st.expander(f"Editar Pedido: {row['Producto']}"):
-        # Producto (solo seleccionable desde el catálogo)
-        producto = st.selectbox(
-            "Producto",
-            options=productos_existentes,
-            index=productos_existentes.index(row["Producto"]) if row["Producto"] in productos_existentes else 0,
-            key=f"producto_{index}"
-        )
-        # Cantidad
-        cantidad = st.number_input(
-            "Cantidad Solicitada",
-            value=row["Cantidad Solicitada"],
-            min_value=1,
-            key=f"cantidad_{index}"
-        )
-        # Unidad
-        unidad = st.text_input(
-            "Unidad",
-            value=row["Unidad"],
-            key=f"unidad_{index}"
-        )
-        # Precio Unitario
-        precio_unitario = st.number_input(
-            "Precio Unitario",
-            value=row["Precio Unitario"],
-            min_value=0.01,
-            key=f"precio_{index}"
-        )
+# Mostrar y editar pedidos agrupados por proveedor
+st.subheader("Pedidos agrupados por Proveedor")
+proveedores = pedidos_df["Proveedor"].unique()
 
-        # Actualizar valores en el DataFrame
-        pedidos_df.at[index, "Producto"] = producto
-        pedidos_df.at[index, "Cantidad Solicitada"] = cantidad
-        pedidos_df.at[index, "Unidad"] = unidad
-        pedidos_df.at[index, "Precio Unitario"] = precio_unitario
-        pedidos_df.at[index, "Total"] = cantidad * precio_unitario
+for proveedor in proveedores:
+    st.markdown(f"### Proveedor: {proveedor}")
+    proveedor_df = pedidos_df[pedidos_df["Proveedor"] == proveedor]
+    
+    for index, row in proveedor_df.iterrows():
+        with st.expander(f"Editar Pedido: {row['Producto']}"):
+            # Producto (solo seleccionable desde el catálogo)
+            producto = st.selectbox(
+                "Producto",
+                options=productos_existentes,
+                index=productos_existentes.index(row["Producto"]) if row["Producto"] in productos_existentes else 0,
+                key=f"producto_{index}"
+            )
+            # Cantidad
+            cantidad = st.number_input(
+                "Cantidad Solicitada",
+                value=row["Cantidad Solicitada"],
+                min_value=1,
+                key=f"cantidad_{index}"
+            )
+            # Unidad
+            unidad = st.text_input(
+                "Unidad",
+                value=row["Unidad"],
+                key=f"unidad_{index}"
+            )
+            # Precio Unitario
+            precio_unitario = st.number_input(
+                "Precio Unitario",
+                value=row["Precio Unitario"],
+                min_value=0.01,
+                key=f"precio_{index}"
+            )
+
+            # Actualizar valores en el DataFrame
+            pedidos_df.at[index, "Producto"] = producto
+            pedidos_df.at[index, "Cantidad Solicitada"] = cantidad
+            pedidos_df.at[index, "Unidad"] = unidad
+            pedidos_df.at[index, "Precio Unitario"] = precio_unitario
+            pedidos_df.at[index, "Total"] = cantidad * precio_unitario
 
 # Mostrar la tabla actualizada
 st.subheader("Pedidos actualizados")
