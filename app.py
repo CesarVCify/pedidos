@@ -4,94 +4,84 @@ from datetime import datetime
 import gspread
 from google.oauth2.service_account import Credentials
 
-# Configuración de la página
-st.set_page_config(page_title="Gestión de Pedidos", layout="wide")
-st.title("Gestión de Pedidos - Mekima")
+# Configuración para Google Sheets
+USAR_GOOGLE_SHEETS = True  # Cambia a False si no usas Google Sheets
 
-# Parámetros iniciales
-USAR_CREDENCIALES = st.sidebar.checkbox("Usar Credenciales JSON", value=False)
+if USAR_GOOGLE_SHEETS:
+    # Credenciales para Google Sheets (usa tu archivo JSON o st.secrets en Streamlit Cloud)
+    creds = {
+        "type": "service_account",
+        "project_id": "tu_project_id",
+        "private_key_id": "tu_private_key_id",
+        "private_key": "-----BEGIN PRIVATE KEY-----\ntu_clave_privada\n-----END PRIVATE KEY-----\n",
+        "client_email": "tu_email_de_servicio@tu_proyecto.iam.gserviceaccount.com",
+        "client_id": "tu_client_id",
+        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+        "token_uri": "https://oauth2.googleapis.com/token",
+        "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+        "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/tu_email_de_servicio%40tu_proyecto.iam.gserviceaccount.com",
+    }
+    gc = gspread.service_account_from_dict(creds)
+    sheet = gc.open_by_key("TU_ID_DE_HOJA").sheet1  # Reemplaza con el ID de tu hoja
 
-# Subida de credenciales o URLs públicas
-if USAR_CREDENCIALES:
-    # Subir archivo JSON
-    auth_key = st.sidebar.file_uploader("Sube tu archivo JSON", type="json")
-    if auth_key:
-        creds = Credentials.from_service_account_info(st.secrets.auth_key)
-        gc = gspread.authorize(creds)
-        st.sidebar.success("Credenciales cargadas con éxito")
+# Cargar datos iniciales
+if USAR_GOOGLE_SHEETS:
+    pedidos_df = pd.DataFrame(sheet.get_all_records())
 else:
-    st.sidebar.info("Usando hojas públicas de Google Sheets")
+    # Datos simulados
+    data = {
+        "Producto": ["Café", "Té", "Pan"],
+        "Cantidad Solicitada": [10, 5, 20],
+        "Unidad": ["kg", "kg", "piezas"],
+        "Precio Unitario": [150, 100, 15],
+        "Total": [1500, 500, 300],
+    }
+    pedidos_df = pd.DataFrame(data)
 
-# IDs de las hojas o URLs públicas
-costo_insumos_key = st.sidebar.text_input("ID de la hoja 'Costo de Insumos':", "1ERtd0fm2FY8-Pm72J3kl8J05T2ryG_fR91kOfPlPrfQ")
-pedidos_key = st.sidebar.text_input("ID de la hoja 'Pedidos':", "106heHrtrvtaBVl13lvhqUzXlhLF7c3NFrbANXO1-FJk")
+# Título de la aplicación
+st.title("Gestión de Pedidos - Editar Pedidos")
 
-def obtener_url_publica(sheet_id):
-    return f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv"
+# Mostrar la tabla inicial con un editor interactivo
+st.subheader("Pedidos actuales")
+edited_df = st.data_editor(
+    pedidos_df,
+    num_rows="dynamic",  # Permite agregar o eliminar filas
+    use_container_width=True,
+)
 
-# Cargar datos
-if st.button("Cargar Datos"):
-    try:
-        if USAR_CREDENCIALES:
-            costo_insumos_sheet = gc.open_by_key(costo_insumos_key).sheet1
-            pedidos_sheet = gc.open_by_key(pedidos_key).sheet1
-            costo_insumos_df = pd.DataFrame(costo_insumos_sheet.get_all_records())
-            pedidos_df = pd.DataFrame(pedidos_sheet.get_all_records())
-        else:
-            costo_insumos_url = obtener_url_publica(costo_insumos_key)
-            pedidos_url = obtener_url_publica(pedidos_key)
-            costo_insumos_df = pd.read_csv(costo_insumos_url)
-            pedidos_df = pd.read_csv(pedidos_url)
-
-        # Visualizar datos cargados
-        st.subheader("Datos de Costo de Insumos")
-        st.dataframe(costo_insumos_df)
-
-        st.subheader("Datos de Pedidos")
-        st.dataframe(pedidos_df)
-
-        # Procesar datos
-        def calcular_costos(pedidos_df, costo_insumos_df):
-            pedidos_df = pedidos_df.merge(
-                costo_insumos_df[['Producto', 'Precio Unitario', 'Proveedor', 'Lugar Comercial']],
-                on='Producto', how='left'
+# Validación de datos
+valido = True
+if st.button("Validar y Actualizar Totales"):
+    for i, row in edited_df.iterrows():
+        if row["Cantidad Solicitada"] <= 0 or row["Precio Unitario"] <= 0:
+            valido = False
+            st.error(
+                f"Error en la fila {i+1}: Cantidad y Precio deben ser positivos."
             )
-            pedidos_df['Total'] = pedidos_df.apply(
-                lambda row: row['Cantidad Solicitada'] * row['Precio Unitario']
-                            if pd.notna(row['Cantidad Solicitada']) and pd.notna(row['Precio Unitario']) else 0,
-                axis=1
-            )
-            return pedidos_df
+            break
 
-        pedidos_df['Cantidad Solicitada'] = pd.to_numeric(pedidos_df['Cantidad Solicitada'], errors='coerce')
-        pedidos_df = calcular_costos(pedidos_df, costo_insumos_df)
-
-        # Resumen
-        cantidad_productos = len(pedidos_df)
-        suma_total = pedidos_df['Total'].sum()
-        fecha_actual = datetime.now().strftime('%Y-%m-%d')
-
-        resumen_df = pd.DataFrame({
-            'Producto': ['TOTAL'],
-            'Cantidad Solicitada': [cantidad_productos],
-            'Unidad': ['-'],
-            'Fecha': [fecha_actual],
-            'Total': [suma_total],
-            'Proveedor': ['-'],
-            'Lugar Comercial': ['-']
-        })
-        pedidos_df = pd.concat([pedidos_df, resumen_df], ignore_index=True)
-
-        # Visualizar pedidos procesados
-        st.subheader("Pedidos Procesados")
-        st.dataframe(pedidos_df)
-
-        # Descargar reporte final
-        st.download_button(
-            label="Descargar Reporte en CSV",
-            data=pedidos_df.to_csv(index=False).encode('utf-8'),
-            file_name=f"Pedido_{fecha_actual}.csv",
-            mime="text/csv"
+    if valido:
+        # Calcular los totales actualizados
+        edited_df["Total"] = (
+            edited_df["Cantidad Solicitada"] * edited_df["Precio Unitario"]
         )
-    except Exception as e:
-        st.error(f"Error al cargar datos: {e}")
+        st.success("Datos validados y totales actualizados.")
+        st.write(edited_df)
+
+        # Guardar en Google Sheets si está habilitado
+        if USAR_GOOGLE_SHEETS:
+            sheet.clear()  # Limpia la hoja antes de guardar los datos
+            sheet.update([edited_df.columns.values.tolist()] + edited_df.values.tolist())
+            st.success("Datos guardados en Google Sheets.")
+
+# Botón para descargar los datos
+st.subheader("Descargar datos")
+if st.button("Descargar CSV"):
+    fecha_actual = datetime.now().strftime('%Y-%m-%d')
+    nombre_csv = f"Pedidos_Actualizados_{fecha_actual}.csv"
+    st.download_button(
+        label="Descargar CSV",
+        data=edited_df.to_csv(index=False).encode("utf-8"),
+        file_name=nombre_csv,
+        mime="text/csv",
+    )
