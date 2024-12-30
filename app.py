@@ -61,7 +61,7 @@ if st.button("Limpiar Cantidades Solicitadas"):
     st.success("¡Cantidad solicitada reiniciada a 0 para todos los productos!")
 
 # Botón para actualizar precios
-if st.button("Actualizar Precios desde Catálogo"):
+ if st.button("Actualizar Precios desde Catálogo"):
 python
 Copiar código
     pedidos_df = actualizar_precios(pedidos_df, catalogo_df)
