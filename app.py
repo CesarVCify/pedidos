@@ -34,12 +34,24 @@ if pedidos_df.empty or catalogo_df.empty:
     st.stop()
 
 # Validar columnas requeridas
-columnas_requeridas = ["Producto", "Cantidad Solicitada", "Unidad", "Precio Unitario", "Total", "Proveedor"]
-faltantes = [col for col in columnas_requeridas if col not in pedidos_df.columns]
+columnas_requeridas_pedidos = ["Producto", "Cantidad Solicitada", "Unidad", "Precio Unitario", "Total", "Proveedor"]
+columnas_requeridas_catalogo = ["Producto", "Precio Unitario"]
 
-if faltantes:
-    st.error(f"Faltan las siguientes columnas en la hoja de pedidos: {faltantes}")
+faltantes_pedidos = [col for col in columnas_requeridas_pedidos if col not in pedidos_df.columns]
+faltantes_catalogo = [col for col in columnas_requeridas_catalogo if col not in catalogo_df.columns]
+
+if faltantes_pedidos:
+    st.error(f"Faltan las siguientes columnas en la hoja de pedidos: {faltantes_pedidos}")
     st.stop()
+
+if faltantes_catalogo:
+    st.error(f"Faltan las siguientes columnas en la hoja del catálogo: {faltantes_catalogo}")
+    st.stop()
+
+# Sincronizar precios unitarios desde el catálogo
+pedidos_df = pedidos_df.merge(catalogo_df[["Producto", "Precio Unitario"]], on="Producto", how="left", suffixes=("", "_catalogo"))
+pedidos_df["Precio Unitario"] = pedidos_df["Precio Unitario_catalogo"]
+pedidos_df.drop(columns=["Precio Unitario_catalogo"], inplace=True)
 
 # Reemplazar valores nulos en "Proveedor"
 pedidos_df["Proveedor"] = pedidos_df["Proveedor"].fillna("Desconocido")
@@ -83,7 +95,23 @@ for i, proveedor in enumerate(proveedores):
             proveedor_df = pedidos_df[pedidos_df["Proveedor"] == proveedor]
             
             for index, row in proveedor_df.iterrows():
-                st.markdown(f"**{row['Producto']}**")
+                # Diseño en columnas para cada producto
+                sub_col1, sub_col2 = st.columns([2, 1])
+                with sub_col1:
+                    st.markdown(f"**{row['Producto']}**")
+                    # Editar Unidad
+                    unidad = st.text_input(
+                        "Unidad",
+                        value=row["Unidad"],
+                        key=f"unidad_{index}"
+                    )
+                    pedidos_df.at[index, "Unidad"] = unidad
+                
+                with sub_col2:
+                    # Mostrar el precio unitario (solo lectura)
+                    st.text(f"Precio Unitario: ${row['Precio Unitario']:.2f}")
+
+                # Campos de Cantidad y Total
                 cantidad = st.number_input(
                     "Cantidad",
                     value=row["Cantidad Solicitada"],
@@ -100,6 +128,6 @@ st.session_state["pedidos_df"] = pedidos_df
 # Mostrar la tabla actualizada en una vista compacta
 st.markdown("### Resumen General de Pedidos")
 st.dataframe(
-    pedidos_df[["Producto", "Cantidad Solicitada", "Total", "Proveedor"]],  # Solo mostrar columnas importantes
+    pedidos_df[["Producto", "Cantidad Solicitada", "Unidad", "Precio Unitario", "Total", "Proveedor"]],  # Solo mostrar columnas importantes
     use_container_width=True,
 )
