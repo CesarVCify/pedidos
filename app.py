@@ -85,10 +85,6 @@ with col2:
 if "expand_all" not in st.session_state:
     st.session_state.expand_all = True
 
-# Botón para contraer o expandir todas las pestañas
-if st.button("Contraer todas" if st.session_state.expand_all else "Expandir todas"):
-    st.session_state.expand_all = not st.session_state.expand_all
-
 # Mostrar y editar pedidos agrupados por proveedor en dos columnas
 st.markdown("### Pedidos Agrupados por Proveedor")
 
@@ -125,6 +121,10 @@ for i, proveedor in enumerate(proveedores):
                         key=f"unidad_{index}"
                     )
                     pedidos_df.at[index, "Unidad"] = unidad
+
+            # Agregar botón para contraer sección de este proveedor
+            if st.button(f"Contraer {proveedor}"):
+                st.session_state.expand_all = False
 
 # Sincronizar cambios con la tabla principal
 st.session_state["pedidos_df"] = pedidos_df
