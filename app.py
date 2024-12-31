@@ -81,6 +81,14 @@ with col2:
             mime="text/csv",
         )
 
+# Variable de estado para expandir o contraer todos
+if "expand_all" not in st.session_state:
+    st.session_state.expand_all = True
+
+# Botón para contraer o expandir todas las pestañas
+if st.button("Contraer todas" if st.session_state.expand_all else "Expandir todas"):
+    st.session_state.expand_all = not st.session_state.expand_all
+
 # Mostrar y editar pedidos agrupados por proveedor en dos columnas
 st.markdown("### Pedidos Agrupados por Proveedor")
 
@@ -91,7 +99,7 @@ col1, col2 = st.columns(2)
 for i, proveedor in enumerate(proveedores):
     col = col1 if i % 2 == 0 else col2  # Alternar entre las columnas
     with col:
-        with st.expander(f"Proveedor: {proveedor}"):
+        with st.expander(f"Proveedor: {proveedor}", expanded=st.session_state.expand_all):
             proveedor_df = pedidos_df[pedidos_df["Proveedor"] == proveedor]
             
             for index, row in proveedor_df.iterrows():
@@ -99,16 +107,9 @@ for i, proveedor in enumerate(proveedores):
                 st.markdown(f"**{row['Producto']}**")
                 st.text(f"Precio Unitario: ${row['Precio Unitario']:.2f}")
                 
-                # Unidad y Cantidad en una sola fila
-                sub_col1, sub_col2 = st.columns([2, 1])
+                # Cantidad y Unidad en una sola fila
+                sub_col1, sub_col2 = st.columns([1, 1])
                 with sub_col1:
-                    unidad = st.text_input(
-                        "Unidad",
-                        value=row["Unidad"],
-                        key=f"unidad_{index}"
-                    )
-                    pedidos_df.at[index, "Unidad"] = unidad
-                with sub_col2:
                     cantidad = st.number_input(
                         "Cantidad",
                         value=row["Cantidad Solicitada"],
@@ -117,6 +118,13 @@ for i, proveedor in enumerate(proveedores):
                     )
                     pedidos_df.at[index, "Cantidad Solicitada"] = cantidad
                     pedidos_df.at[index, "Total"] = cantidad * row["Precio Unitario"]
+                with sub_col2:
+                    unidad = st.text_input(
+                        "Unidad",
+                        value=row["Unidad"],
+                        key=f"unidad_{index}"
+                    )
+                    pedidos_df.at[index, "Unidad"] = unidad
 
 # Sincronizar cambios con la tabla principal
 st.session_state["pedidos_df"] = pedidos_df
