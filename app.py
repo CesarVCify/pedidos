@@ -81,9 +81,9 @@ with col2:
             mime="text/csv",
         )
 
-# Variable de estado para expandir o contraer todos
-if "expand_all" not in st.session_state:
-    st.session_state.expand_all = True
+# Configurar estado para expansión de proveedores
+if "proveedor_expandido" not in st.session_state:
+    st.session_state.proveedor_expandido = {proveedor: True for proveedor in pedidos_df["Proveedor"].unique()}
 
 # Mostrar y editar pedidos agrupados por proveedor en dos columnas
 st.markdown("### Pedidos Agrupados por Proveedor")
@@ -95,7 +95,9 @@ col1, col2 = st.columns(2)
 for i, proveedor in enumerate(proveedores):
     col = col1 if i % 2 == 0 else col2  # Alternar entre las columnas
     with col:
-        with st.expander(f"Proveedor: {proveedor}", expanded=st.session_state.expand_all):
+        # Verificar el estado de expansión del proveedor
+        expanded = st.session_state.proveedor_expandido.get(proveedor, True)
+        with st.expander(f"Proveedor: {proveedor}", expanded=expanded):
             proveedor_df = pedidos_df[pedidos_df["Proveedor"] == proveedor]
             
             for index, row in proveedor_df.iterrows():
@@ -121,10 +123,10 @@ for i, proveedor in enumerate(proveedores):
                         key=f"unidad_{index}"
                     )
                     pedidos_df.at[index, "Unidad"] = unidad
-
-            # Agregar botón para contraer sección de este proveedor
-            if st.button(f"Contraer {proveedor}"):
-                st.session_state.expand_all = False
+            
+            # Botón para contraer sección de este proveedor
+            if st.button(f"Contraer {proveedor}", key=f"contraer_{proveedor}"):
+                st.session_state.proveedor_expandido[proveedor] = False
 
 # Sincronizar cambios con la tabla principal
 st.session_state["pedidos_df"] = pedidos_df
