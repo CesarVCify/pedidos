@@ -95,32 +95,28 @@ for i, proveedor in enumerate(proveedores):
             proveedor_df = pedidos_df[pedidos_df["Proveedor"] == proveedor]
             
             for index, row in proveedor_df.iterrows():
-                # Diseño en columnas para cada producto
+                # Mostrar Producto y Precio Unitario
+                st.markdown(f"**{row['Producto']}**")
+                st.text(f"Precio Unitario: ${row['Precio Unitario']:.2f}")
+                
+                # Unidad y Cantidad en una sola fila
                 sub_col1, sub_col2 = st.columns([2, 1])
                 with sub_col1:
-                    st.markdown(f"**{row['Producto']}**")
-                    # Editar Unidad
                     unidad = st.text_input(
                         "Unidad",
                         value=row["Unidad"],
                         key=f"unidad_{index}"
                     )
                     pedidos_df.at[index, "Unidad"] = unidad
-                
                 with sub_col2:
-                    # Mostrar el precio unitario (solo lectura)
-                    st.text(f"Precio Unitario: ${row['Precio Unitario']:.2f}")
-
-                # Campos de Cantidad y Total
-                cantidad = st.number_input(
-                    "Cantidad",
-                    value=row["Cantidad Solicitada"],
-                    min_value=0,
-                    key=f"cantidad_{index}"
-                )
-                pedidos_df.at[index, "Cantidad Solicitada"] = cantidad
-                pedidos_df.at[index, "Total"] = cantidad * row["Precio Unitario"]
-                st.text(f"Total: ${pedidos_df.at[index, 'Total']:.2f}")
+                    cantidad = st.number_input(
+                        "Cantidad",
+                        value=row["Cantidad Solicitada"],
+                        min_value=0,
+                        key=f"cantidad_{index}"
+                    )
+                    pedidos_df.at[index, "Cantidad Solicitada"] = cantidad
+                    pedidos_df.at[index, "Total"] = cantidad * row["Precio Unitario"]
 
 # Sincronizar cambios con la tabla principal
 st.session_state["pedidos_df"] = pedidos_df
