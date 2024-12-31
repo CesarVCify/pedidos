@@ -46,31 +46,29 @@ pedidos_df["Proveedor"] = pedidos_df["Proveedor"].fillna("Desconocido")
 # Función para limpiar cantidades solicitadas
 def limpiar_cantidades(df):
     df["Cantidad Solicitada"] = 0  # Reinicia todas las cantidades a 0
+    df["Total"] = 0  # También reinicia los totales
     return df
-
-# Función para actualizar precios unitarios desde el catálogo
-def actualizar_precios(df_pedidos, df_catalogo):
-    precios = dict(zip(df_catalogo["Producto"], df_catalogo["Precio Unitario"]))
-    df_pedidos["Precio Unitario"] = df_pedidos["Producto"].map(precios)
-    df_pedidos["Precio Unitario"] = df_pedidos["Precio Unitario"].fillna(0.01)  # Valor predeterminado si no hay precio
-    return df_pedidos
 
 # Botón para limpiar datos
 if st.button("Limpiar Cantidades Solicitadas"):
-    pedidos_df = limpiar_cantidades(pedidos_df)
+    pedidos_df = limpiar_cantidades(pedidos_df)  # Actualiza las cantidades y totales
+    st.session_state["pedidos_df"] = pedidos_df  # Actualiza el estado global
     st.success("¡Cantidad solicitada reiniciada a 0 para todos los productos!")
 
-# Botón para actualizar precios
+# Sincronizar estado entre la tabla editable y final
+if "pedidos_df" not in st.session_state:
+    st.session_state["pedidos_df"] = pedidos_df
+else:
+    pedidos_df = st.session_state["pedidos_df"]
+
+# Botón para actualizar precios (opcional si es necesario)
 if st.button("Actualizar Precios desde Catálogo"):
-    pedidos_df = actualizar_precios(pedidos_df, catalogo_df)
+    precios = dict(zip(catalogo_df["Producto"], catalogo_df["Precio Unitario"]))
+    pedidos_df["Precio Unitario"] = pedidos_df["Producto"].map(precios)
+    pedidos_df["Precio Unitario"] = pedidos_df["Precio Unitario"].fillna(0.01)  # Valor predeterminado si no hay precio
+    pedidos_df["Total"] = pedidos_df["Cantidad Solicitada"] * pedidos_df["Precio Unitario"]
+    st.session_state["pedidos_df"] = pedidos_df  # Sincroniza cambios
     st.success("¡Precios unitarios actualizados desde el catálogo!")
-
-# Reemplazar valores inválidos
-pedidos_df["Cantidad Solicitada"] = pedidos_df["Cantidad Solicitada"].apply(lambda x: max(x, 0) if pd.notnull(x) else 0)
-pedidos_df["Precio Unitario"] = pedidos_df["Precio Unitario"].apply(lambda x: max(x, 0.01) if pd.notnull(x) else 0.01)
-
-# Restringir productos al catálogo
-productos_existentes = catalogo_df["Producto"].tolist()
 
 # Mostrar y editar pedidos agrupados por proveedor
 st.subheader("Pedidos agrupados por Proveedor")
@@ -82,11 +80,11 @@ for proveedor in proveedores:
     
     for index, row in proveedor_df.iterrows():
         with st.expander(f"Editar Pedido: {row['Producto']}"):
-            # Producto (solo seleccionable desde el catálogo)
+            # Producto
             producto = st.selectbox(
                 "Producto",
-                options=productos_existentes,
-                index=productos_existentes.index(row["Producto"]) if row["Producto"] in productos_existentes else 0,
+                options=catalogo_df["Producto"].tolist(),
+                index=catalogo_df["Producto"].tolist().index(row["Producto"]) if row["Producto"] in catalogo_df["Producto"].tolist() else 0,
                 key=f"producto_{index}"
             )
             # Cantidad
@@ -117,6 +115,9 @@ for proveedor in proveedores:
             pedidos_df.at[index, "Precio Unitario"] = precio_unitario
             pedidos_df.at[index, "Total"] = cantidad * precio_unitario
 
+# Sincronizar cambios con la tabla principal
+st.session_state["pedidos_df"] = pedidos_df
+
 # Mostrar la tabla actualizada
 st.subheader("Pedidos actualizados")
 st.dataframe(pedidos_df)
@@ -132,4 +133,5 @@ if st.button("Descargar pedidos"):
         file_name=nombre_csv,
         mime="text/csv",
     )
+
 
