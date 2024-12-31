@@ -69,20 +69,20 @@ with col2:
             mime="text/csv",
         )
 
-# Mostrar y editar pedidos agrupados por proveedor
+# Mostrar y editar pedidos agrupados por proveedor en dos columnas
 st.markdown("### Pedidos Agrupados por Proveedor")
+
 proveedores = pedidos_df["Proveedor"].unique()
 
-for proveedor in proveedores:
-    with st.expander(f"Proveedor: {proveedor}"):
-        proveedor_df = pedidos_df[pedidos_df["Proveedor"] == proveedor]
-        
-        # Dividir los productos en dos columnas
-        col1, col2 = st.columns(2)
-        for i, (index, row) in enumerate(proveedor_df.iterrows()):
-            col = col1 if i % 2 == 0 else col2  # Alternar entre columnas
+# Dividir los proveedores en dos columnas
+col1, col2 = st.columns(2)
+for i, proveedor in enumerate(proveedores):
+    col = col1 if i % 2 == 0 else col2  # Alternar entre las columnas
+    with col:
+        with st.expander(f"Proveedor: {proveedor}"):
+            proveedor_df = pedidos_df[pedidos_df["Proveedor"] == proveedor]
             
-            with col:
+            for index, row in proveedor_df.iterrows():
                 st.markdown(f"**{row['Producto']}**")
                 cantidad = st.number_input(
                     "Cantidad",
