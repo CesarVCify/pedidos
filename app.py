@@ -137,3 +137,4 @@ st.dataframe(
     pedidos_df[["Producto", "Cantidad Solicitada", "Unidad", "Precio Unitario", "Total", "Proveedor"]],  # Solo mostrar columnas importantes
     use_container_width=True,
 )
+
