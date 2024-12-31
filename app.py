@@ -22,8 +22,9 @@ def cargar_hoja(sheet_id):
         return pd.DataFrame()
 
 # Cargar datos iniciales
-st.title("Gestión de Pedidos - Editar Pedidos")
-st.info("Los productos solo pueden seleccionarse del catálogo cargado desde Google Sheets.")
+st.set_page_config(page_title="Gestión de Pedidos", layout="centered")
+st.title("Gestión de Pedidos")
+st.markdown("### Administra, edita y organiza tus pedidos de forma rápida y sencilla.")
 
 pedidos_df = cargar_hoja(ID_PEDIDOS)
 catalogo_df = cargar_hoja(ID_CATALOGO)
@@ -49,89 +50,62 @@ def limpiar_cantidades(df):
     df["Total"] = 0  # También reinicia los totales
     return df
 
-# Botón para limpiar datos
-if st.button("Limpiar Cantidades Solicitadas"):
-    pedidos_df = limpiar_cantidades(pedidos_df)  # Actualiza las cantidades y totales
-    st.session_state["pedidos_df"] = pedidos_df  # Actualiza el estado global
-    st.success("¡Cantidad solicitada reiniciada a 0 para todos los productos!")
-
-# Sincronizar estado entre la tabla editable y final
-if "pedidos_df" not in st.session_state:
-    st.session_state["pedidos_df"] = pedidos_df
-else:
-    pedidos_df = st.session_state["pedidos_df"]
-
-# Botón para actualizar precios (opcional si es necesario)
-if st.button("Actualizar Precios desde Catálogo"):
-    precios = dict(zip(catalogo_df["Producto"], catalogo_df["Precio Unitario"]))
-    pedidos_df["Precio Unitario"] = pedidos_df["Producto"].map(precios)
-    pedidos_df["Precio Unitario"] = pedidos_df["Precio Unitario"].fillna(0.01)  # Valor predeterminado si no hay precio
-    pedidos_df["Total"] = pedidos_df["Cantidad Solicitada"] * pedidos_df["Precio Unitario"]
-    st.session_state["pedidos_df"] = pedidos_df  # Sincroniza cambios
-    st.success("¡Precios unitarios actualizados desde el catálogo!")
+# Botones destacados
+col1, col2 = st.columns(2)
+with col1:
+    if st.button("🔄 Limpiar Cantidades"):
+        pedidos_df = limpiar_cantidades(pedidos_df)  # Actualiza las cantidades y totales
+        st.session_state["pedidos_df"] = pedidos_df  # Actualiza el estado global
+        st.success("¡Cantidad solicitada reiniciada a 0 para todos los productos!")
+with col2:
+    if st.button("📥 Descargar Pedidos"):
+        pedidos_filtrados = pedidos_df[pedidos_df["Cantidad Solicitada"] > 0]  # Excluir productos con cantidad 0
+        fecha_actual = datetime.now().strftime('%Y-%m-%d')
+        nombre_csv = f"Pedidos_Actualizados_{fecha_actual}.csv"
+        st.download_button(
+            label="Descargar CSV",
+            data=pedidos_filtrados.to_csv(index=False).encode("utf-8"),
+            file_name=nombre_csv,
+            mime="text/csv",
+        )
 
 # Mostrar y editar pedidos agrupados por proveedor
-st.subheader("Pedidos agrupados por Proveedor")
+st.markdown("### Pedidos Agrupados por Proveedor")
 proveedores = pedidos_df["Proveedor"].unique()
 
 for proveedor in proveedores:
-    st.markdown(f"### Proveedor: {proveedor}")
-    proveedor_df = pedidos_df[pedidos_df["Proveedor"] == proveedor]
-    
-    for index, row in proveedor_df.iterrows():
-        with st.expander(f"Editar Pedido: {row['Producto']}"):
-            # Producto
-            producto = st.selectbox(
-                "Producto",
-                options=catalogo_df["Producto"].tolist(),
-                index=catalogo_df["Producto"].tolist().index(row["Producto"]) if row["Producto"] in catalogo_df["Producto"].tolist() else 0,
-                key=f"producto_{index}"
-            )
-            # Cantidad
-            cantidad = st.number_input(
-                "Cantidad Solicitada",
-                value=row["Cantidad Solicitada"],
-                min_value=0,
-                key=f"cantidad_{index}"
-            )
-            # Unidad
-            unidad = st.text_input(
-                "Unidad",
-                value=row["Unidad"],
-                key=f"unidad_{index}"
-            )
-            # Precio Unitario
-            precio_unitario = st.number_input(
-                "Precio Unitario",
-                value=row["Precio Unitario"],
-                min_value=0.01,
-                key=f"precio_{index}"
-            )
-
-            # Actualizar valores en el DataFrame
-            pedidos_df.at[index, "Producto"] = producto
-            pedidos_df.at[index, "Cantidad Solicitada"] = cantidad
-            pedidos_df.at[index, "Unidad"] = unidad
-            pedidos_df.at[index, "Precio Unitario"] = precio_unitario
-            pedidos_df.at[index, "Total"] = cantidad * precio_unitario
+    with st.expander(f"Proveedor: {proveedor}"):
+        proveedor_df = pedidos_df[pedidos_df["Proveedor"] == proveedor]
+        for index, row in proveedor_df.iterrows():
+            col1, col2, col3 = st.columns([2, 1, 1])
+            with col1:
+                st.text_input(
+                    "Producto",
+                    value=row["Producto"],
+                    key=f"producto_{index}",
+                    disabled=True  # Solo lectura para evitar modificar directamente el nombre
+                )
+            with col2:
+                cantidad = st.number_input(
+                    "Cantidad",
+                    value=row["Cantidad Solicitada"],
+                    min_value=0,
+                    key=f"cantidad_{index}"
+                )
+                pedidos_df.at[index, "Cantidad Solicitada"] = cantidad
+                pedidos_df.at[index, "Total"] = cantidad * row["Precio Unitario"]
+            with col3:
+                st.text(f"${row['Total']:.2f}")  # Mostrar el total calculado
 
 # Sincronizar cambios con la tabla principal
 st.session_state["pedidos_df"] = pedidos_df
 
-# Mostrar la tabla actualizada
-st.subheader("Pedidos actualizados")
-st.dataframe(pedidos_df)
+# Mostrar la tabla actualizada en una vista compacta
+st.markdown("### Resumen General de Pedidos")
+st.dataframe(
+    pedidos_df[["Producto", "Cantidad Solicitada", "Total", "Proveedor"]],  # Solo mostrar columnas importantes
+    use_container_width=True,
+)
 
-# Descargar pedidos actualizados (excluyendo productos con cantidad 0)
-if st.button("Descargar pedidos"):
-    pedidos_filtrados = pedidos_df[pedidos_df["Cantidad Solicitada"] > 0]  # Excluir productos con cantidad 0
-    fecha_actual = datetime.now().strftime('%Y-%m-%d')
-    nombre_csv = f"Pedidos_Actualizados_{fecha_actual}.csv"
-    st.download_button(
-        label="Descargar CSV",
-        data=pedidos_filtrados.to_csv(index=False).encode("utf-8"),
-        file_name=nombre_csv,
-        mime="text/csv",
-    )
 
 
