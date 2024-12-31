@@ -76,16 +76,14 @@ proveedores = pedidos_df["Proveedor"].unique()
 for proveedor in proveedores:
     with st.expander(f"Proveedor: {proveedor}"):
         proveedor_df = pedidos_df[pedidos_df["Proveedor"] == proveedor]
-        for index, row in proveedor_df.iterrows():
-            col1, col2, col3 = st.columns([2, 1, 1])
-            with col1:
-                st.text_input(
-                    "Producto",
-                    value=row["Producto"],
-                    key=f"producto_{index}",
-                    disabled=True  # Solo lectura para evitar modificar directamente el nombre
-                )
-            with col2:
+        
+        # Dividir los productos en dos columnas
+        col1, col2 = st.columns(2)
+        for i, (index, row) in enumerate(proveedor_df.iterrows()):
+            col = col1 if i % 2 == 0 else col2  # Alternar entre columnas
+            
+            with col:
+                st.markdown(f"**{row['Producto']}**")
                 cantidad = st.number_input(
                     "Cantidad",
                     value=row["Cantidad Solicitada"],
@@ -94,8 +92,7 @@ for proveedor in proveedores:
                 )
                 pedidos_df.at[index, "Cantidad Solicitada"] = cantidad
                 pedidos_df.at[index, "Total"] = cantidad * row["Precio Unitario"]
-            with col3:
-                st.text(f"${row['Total']:.2f}")  # Mostrar el total calculado
+                st.text(f"Total: ${pedidos_df.at[index, 'Total']:.2f}")
 
 # Sincronizar cambios con la tabla principal
 st.session_state["pedidos_df"] = pedidos_df
@@ -106,6 +103,3 @@ st.dataframe(
     pedidos_df[["Producto", "Cantidad Solicitada", "Total", "Proveedor"]],  # Solo mostrar columnas importantes
     use_container_width=True,
 )
-
-
-
