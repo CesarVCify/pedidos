@@ -67,19 +67,17 @@ pedidos_df["Proveedor"] = pedidos_df["Proveedor"].fillna("Desconocido")
 if "proveedor_expandido" not in st.session_state:
     st.session_state.proveedor_expandido = {proveedor: False for proveedor in pedidos_df["Proveedor"].unique()}
 
-# Función para limpiar cantidades solicitadas
-def limpiar_cantidades():
-    confirmacion = st.checkbox("¿Estás seguro de que quieres limpiar todas las cantidades?")
-    if confirmacion:
-        st.session_state["pedidos_df"]["Cantidad Solicitada"] = 0
-        st.session_state["pedidos_df"]["Total"] = 0
-        st.success("¡Cantidad solicitada reiniciada a 0 para todos los productos!")
-
 # Sincronizar datos globales
 if "pedidos_df" not in st.session_state:
     st.session_state["pedidos_df"] = pedidos_df
 
 pedidos_df = st.session_state["pedidos_df"]
+
+# Función para limpiar cantidades solicitadas
+def limpiar_cantidades():
+    st.session_state["pedidos_df"]["Cantidad Solicitada"] = 0
+    st.session_state["pedidos_df"]["Total"] = 0
+    st.success("¡Cantidad solicitada reiniciada a 0 para todos los productos!")
 
 # Botones destacados
 col1, col2 = st.columns(2)
@@ -194,6 +192,7 @@ st.dataframe(
     pedidos_filtrados[["Producto", "Cantidad Solicitada", "Unidad", "Precio Unitario", "Total", "Proveedor"]],
     use_container_width=True,
 )
+
 
 
 
