@@ -88,7 +88,7 @@ pedidos_df["Proveedor"] = pedidos_df["Proveedor"].fillna("Desconocido")
 
 # Estado inicial de expansión de proveedores
 if "proveedor_expandido" not in st.session_state:
-    st.session_state.proveedor_expandido = {proveedor: False for proveedor in pedidos_df["Proveedor"].unique()}
+    st.session_state["proveedor_expandido"] = {proveedor: False for proveedor in pedidos_df["Proveedor"].unique()}
 
 # Sincronizar datos globales
 if "pedidos_df" not in st.session_state:
@@ -228,10 +228,6 @@ st.dataframe(
     pedidos_filtrados[["Producto", "Cantidad Solicitada", "Unidad", "Precio Unitario", "Total", "Proveedor"]],
     use_container_width=True,
 )
-
-
-
-
 
 
 
