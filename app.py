@@ -63,13 +63,8 @@ pedidos_df = pedidos_df.merge(
     how="left"
 )
 
-# Validar si "Unidad Base" existe
-definir_valor_predeterminado = "unidad"
-if "Unidad Base" not in pedidos_df.columns:
-    pedidos_df["Unidad Base"] = definir_valor_predeterminado
-
-# Asegurarse de que las columnas necesarias no tengan valores nulos
-pedidos_df["Unidad Base"] = pedidos_df["Unidad Base"].fillna(definir_valor_predeterminado)
+# Validar si "Unidad Base" y "Precio Unitario" existen y asignar valores predeterminados
+pedidos_df["Unidad Base"] = pedidos_df["Unidad Base"].fillna("unidad")
 pedidos_df["Precio Unitario"] = pedidos_df["Precio Unitario"].fillna(0)
 
 # Definir factores de conversión
@@ -242,6 +237,7 @@ st.dataframe(
     pedidos_filtrados[["Producto", "Cantidad Solicitada", "Unidad", "Precio Unitario", "Total", "Proveedor"]],
     use_container_width=True,
 )
+
 
 
 
