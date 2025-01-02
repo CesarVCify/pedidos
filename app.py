@@ -73,6 +73,9 @@ if "pedidos_df" not in st.session_state:
 
 pedidos_df = st.session_state["pedidos_df"]
 
+# Agregar interruptor de modo administrador
+modo_admin = st.sidebar.checkbox("Habilitar modo administrador")
+
 # Función para limpiar cantidades solicitadas
 def limpiar_cantidades():
     st.session_state["pedidos_df"]["Cantidad Solicitada"] = 0
@@ -132,7 +135,6 @@ if st.button("🔼 Contraer Todo"):
 # Dividir los proveedores en dos columnas
 col1, col2 = st.columns(2)
 unidades_disponibles = ["kg", "g", "l", "ml", "piezas"]
-admin_password = "mekima12"
 for i, proveedor in enumerate(proveedores):
     col = col1 if i % 2 == 0 else col2
     with col:
@@ -165,20 +167,20 @@ for i, proveedor in enumerate(proveedores):
                     )
                     pedidos_df.at[index, "Unidad"] = unidad
 
-                # Edición del precio unitario con contraseña
-                if st.button(f"Editar Precio Unitario: {row['Producto']}", key=f"editar_precio_{index}"):
-                    contraseña = st.text_input("Introduce la contraseña de administrador:", type="password", key=f"password_{index}")
-                    if contraseña == admin_password:
-                        nuevo_precio = st.number_input("Nuevo Precio Unitario:", min_value=0.0, value=row["Precio Unitario"], key=f"nuevo_precio_{index}")
-                        if st.button("Actualizar Precio", key=f"actualizar_precio_{index}"):
-                            pedidos_df.at[index, "Precio Unitario"] = nuevo_precio
-                            pedidos_df.at[index, "Total"] = nuevo_precio * row["Cantidad Solicitada"]
-                            st.success("Precio unitario actualizado correctamente.")
-                            # Reflejar cambios globales
-                            st.session_state["pedidos_df"] = pedidos_df
-                            st.experimental_rerun()
-                    elif contraseña:
-                        st.error("Contraseña incorrecta.")
+                # Edición del precio unitario en modo administrador
+                if modo_admin:
+                    nuevo_precio = st.number_input(
+                        "Nuevo Precio Unitario:",
+                        value=row["Precio Unitario"],
+                        min_value=0.0,
+                        step=0.01,
+                        key=f"nuevo_precio_{index}"
+                    )
+                    if st.button("Actualizar Precio", key=f"actualizar_precio_{index}"):
+                        pedidos_df.at[index, "Precio Unitario"] = nuevo_precio
+                        pedidos_df.at[index, "Total"] = nuevo_precio * row["Cantidad Solicitada"]
+                        st.success(f"Precio actualizado para {row['Producto']}.")
+                        st.session_state["pedidos_df"] = pedidos_df
 
             # Botón para contraer esta sección específica
             if st.button(f"Contraer {proveedor}", key=f"contraer_{proveedor}"):
