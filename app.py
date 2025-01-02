@@ -1,38 +1,53 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
-import gspread
-from google.oauth2.service_account import Credentials
-
-# Configurar credenciales para Google Sheets
-SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
-CREDENTIALS = Credentials.from_service_account_info(
-    st.secrets["google_credentials"], scopes=SCOPES
-)
 
 # Configuración de los IDs de las hojas de Google Sheets
 ID_PEDIDOS = "106heHrtrvtaBVl13lvhqUzXlhLF7c3NFrbANXO1-FJk"
 ID_CATALOGO = "1ERtd0fm2FY8-Pm72J3kl8J05T2ryG_fR91kOfPlPrfQ"
 
-# Cargar Google Sheets
+def obtener_url_publica(sheet_id):
+    """Genera la URL de exportación pública de una hoja de Google Sheets."""
+    return f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv"
+
 def cargar_hoja(sheet_id):
-    client = gspread.authorize(CREDENTIALS)
-    sheet = client.open_by_key(sheet_id).sheet1
-    return pd.DataFrame(sheet.get_all_records())
+    """Carga datos desde una hoja pública de Google Sheets."""
+    url = obtener_url_publica(sheet_id)
+    try:
+        df = pd.read_csv(url)
+        df.columns = [col.strip() for col in df.columns]  # Limpia espacios en los encabezados
+        return df
+    except Exception as e:
+        st.error(f"Error al cargar la hoja con ID {sheet_id}: {e}")
+        return pd.DataFrame()
 
-def actualizar_hoja(sheet_id, data):
-    client = gspread.authorize(CREDENTIALS)
-    sheet = client.open_by_key(sheet_id).sheet1
-    sheet.clear()
-    sheet.update([data.columns.values.tolist()] + data.values.tolist())
-
-# Cargar datos iniciales
+# Configurar la página
 st.set_page_config(page_title="Gestión de Pedidos", layout="wide")
 st.title("Gestión de Pedidos")
 st.markdown("### Administra, edita y organiza tus pedidos de forma rápida y sencilla.")
 
+# Cargar datos
 pedidos_df = cargar_hoja(ID_PEDIDOS)
 catalogo_df = cargar_hoja(ID_CATALOGO)
+
+if pedidos_df.empty or catalogo_df.empty:
+    st.warning("No se pudieron cargar los datos. Verifica que las hojas sean públicas y los IDs sean correctos.")
+    st.stop()
+
+# Validar columnas requeridas
+columnas_requeridas_pedidos = ["Producto", "Cantidad Solicitada", "Unidad", "Precio Unitario", "Total", "Proveedor"]
+columnas_requeridas_catalogo = ["Producto", "Precio Unitario"]
+
+faltantes_pedidos = [col for col in columnas_requeridas_pedidos if col not in pedidos_df.columns]
+faltantes_catalogo = [col for col in columnas_requeridas_catalogo if col not in catalogo_df.columns]
+
+if faltantes_pedidos:
+    st.error(f"Faltan las siguientes columnas en la hoja de pedidos: {faltantes_pedidos}")
+    st.stop()
+
+if faltantes_catalogo:
+    st.error(f"Faltan las siguientes columnas en la hoja del catálogo: {faltantes_catalogo}")
+    st.stop()
 
 # Sincronizar precios unitarios desde el catálogo
 pedidos_df = pedidos_df.merge(catalogo_df[["Producto", "Precio Unitario"]], on="Producto", how="left", suffixes=("", "_catalogo"))
@@ -41,6 +56,10 @@ pedidos_df.drop(columns=["Precio Unitario_catalogo"], inplace=True)
 
 # Reemplazar valores nulos en "Proveedor"
 pedidos_df["Proveedor"] = pedidos_df["Proveedor"].fillna("Desconocido")
+
+# Estado inicial de expansión de proveedores
+if "proveedor_expandido" not in st.session_state:
+    st.session_state.proveedor_expandido = {proveedor: False for proveedor in pedidos_df["Proveedor"].unique()}
 
 # Función para limpiar cantidades solicitadas
 def limpiar_cantidades(df):
@@ -67,16 +86,36 @@ with col2:
             mime="text/csv",
         )
 
+# Función de búsqueda
+st.markdown("### Buscar Artículo")
+busqueda = st.text_input("Introduce el nombre del producto que deseas buscar:")
+if busqueda:
+    resultados = pedidos_df[pedidos_df["Producto"].str.contains(busqueda, case=False, na=False)]
+    if resultados.empty:
+        st.warning("No se encontraron resultados para tu búsqueda.")
+    else:
+        st.dataframe(resultados)
+
 # Mostrar y editar pedidos agrupados por proveedor en dos columnas
 st.markdown("### Pedidos Agrupados por Proveedor")
 proveedores = pedidos_df["Proveedor"].unique()
+
+# Botón para expandir/contraer todos
+if st.button("🔽 Expandir Todo"):
+    for proveedor in proveedores:
+        st.session_state.proveedor_expandido[proveedor] = True
+
+if st.button("🔼 Contraer Todo"):
+    for proveedor in proveedores:
+        st.session_state.proveedor_expandido[proveedor] = False
 
 # Dividir los proveedores en dos columnas
 col1, col2 = st.columns(2)
 for i, proveedor in enumerate(proveedores):
     col = col1 if i % 2 == 0 else col2
     with col:
-        with st.expander(f"Proveedor: {proveedor}"):
+        # Usar el estado actual de expansión para cada proveedor
+        with st.expander(f"Proveedor: {proveedor}", expanded=st.session_state.proveedor_expandido[proveedor]):
             proveedor_df = pedidos_df[pedidos_df["Proveedor"] == proveedor]
 
             for index, row in proveedor_df.iterrows():
@@ -103,42 +142,17 @@ for i, proveedor in enumerate(proveedores):
                     )
                     pedidos_df.at[index, "Unidad"] = unidad
 
-# Vista previa del pedido final
-st.markdown("### Vista Previa del Pedido Final")
-pedido_final = pedidos_df[pedidos_df["Cantidad Solicitada"] > 0]
-for index, row in pedido_final.iterrows():
-    st.markdown(f"**Producto: {row['Producto']}**")
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.write(f"Cantidad: {row['Cantidad Solicitada']}")
-    with col2:
-        costo = st.number_input(
-            "Costo Unitario",
-            value=row["Precio Unitario"],
-            min_value=0.0,
-            step=0.1,
-            key=f"precio_{index}"
-        )
-        pedidos_df.at[index, "Precio Unitario"] = costo
-    with col3:
-        st.write(f"Total: ${row['Cantidad Solicitada'] * row['Precio Unitario']:.2f}")
+            # Botón para contraer esta sección específica
+            if st.button(f"Contraer {proveedor}", key=f"contraer_{proveedor}"):
+                st.session_state.proveedor_expandido[proveedor] = False
 
-# Botón para actualizar el costo en Google Sheets
-if st.button("📤 Actualizar Precios en Google Sheets"):
-    try:
-        actualizar_hoja(ID_PEDIDOS, pedidos_df)
-        st.success("Precios actualizados correctamente en Google Sheets.")
-    except Exception as e:
-        st.error(f"Error al actualizar precios: {e}")
+# Actualizar el estado global de pedidos
+st.session_state["pedidos_df"] = pedidos_df
 
-# Mostrar el resumen general de pedidos filtrado
+# Mostrar la tabla actualizada con filtro de cantidades > 0
 st.markdown("### Resumen General de Pedidos")
-pedido_resumen = pedidos_df[pedidos_df["Cantidad Solicitada"] > 0]  # Filtrar pedidos con cantidad > 0
-
-if pedido_resumen.empty:
-    st.info("No hay productos con cantidad mayor a cero.")
-else:
-    st.dataframe(
-        pedido_resumen[["Producto", "Cantidad Solicitada", "Unidad", "Precio Unitario", "Total", "Proveedor"]],
-        use_container_width=True,
-    )
+pedidos_filtrados = pedidos_df[pedidos_df["Cantidad Solicitada"] > 0]
+st.dataframe(
+    pedidos_filtrados[["Producto", "Cantidad Solicitada", "Unidad", "Precio Unitario", "Total", "Proveedor"]],
+    use_container_width=True,
+)
