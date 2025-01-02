@@ -73,6 +73,7 @@ def limpiar_cantidades(df):
     if confirmacion:
         df["Cantidad Solicitada"] = 0
         df["Total"] = 0
+        st.session_state["pedidos_df"] = df  # Asegurar sincronización global
         st.success("¡Cantidad solicitada reiniciada a 0 para todos los productos!")
     return df
 
@@ -189,7 +190,6 @@ pedidos_filtrados = pedidos_df[pedidos_df["Cantidad Solicitada"] > 0]
 st.dataframe(
     pedidos_filtrados[["Producto", "Cantidad Solicitada", "Unidad", "Precio Unitario", "Total", "Proveedor"]],
     use_container_width=True,
-)
 
 
 
