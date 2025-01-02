@@ -1,22 +1,28 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
+import gspread
+from google.oauth2.service_account import Credentials
 
 # Configuración de los IDs de las hojas de Google Sheets
 ID_PEDIDOS = "106heHrtrvtaBVl13lvhqUzXlhLF7c3NFrbANXO1-FJk"
 ID_CATALOGO = "1ERtd0fm2FY8-Pm72J3kl8J05T2ryG_fR91kOfPlPrfQ"
 
-def obtener_url_publica(sheet_id):
-    """Genera la URL de exportación pública de una hoja de Google Sheets."""
-    return f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv"
+# Alcances requeridos
+SCOPES = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
 
+# Cargar credenciales desde los secrets de Streamlit
+creds = Credentials.from_service_account_info(
+    st.secrets["google_credentials"], scopes=SCOPES
+)
+client = gspread.authorize(creds)
+
+# Función para cargar datos desde Google Sheets
 def cargar_hoja(sheet_id):
-    """Carga datos desde una hoja pública de Google Sheets."""
-    url = obtener_url_publica(sheet_id)
     try:
-        df = pd.read_csv(url)
-        df.columns = [col.strip() for col in df.columns]  # Limpia espacios en los encabezados
-        return df
+        sheet = client.open_by_key(sheet_id).sheet1
+        data = pd.DataFrame(sheet.get_all_records())
+        return data
     except Exception as e:
         st.error(f"Error al cargar la hoja con ID {sheet_id}: {e}")
         return pd.DataFrame()
