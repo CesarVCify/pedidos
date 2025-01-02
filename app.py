@@ -41,7 +41,7 @@ if pedidos_df.empty or catalogo_df.empty:
     st.stop()
 
 # Validar columnas requeridas
-columnas_requeridas_pedidos = ["Producto", "Cantidad Solicitada", "Unidad", "Precio Unitario", "Total", "Proveedor"]
+columnas_requeridas_pedidos = ["Producto", "Cantidad Solicitada", "Unidad", "Proveedor"]
 columnas_requeridas_catalogo = ["Producto", "Precio Unitario"]
 
 faltantes_pedidos = [col for col in columnas_requeridas_pedidos if col not in pedidos_df.columns]
@@ -56,8 +56,13 @@ if faltantes_catalogo:
     st.stop()
 
 # Sincronizar precios unitarios desde el catálogo
-pedidos_df = pedidos_df.merge(catalogo_df[["Producto", "Precio Unitario"]], on="Producto", how="left", suffixes=("", "_catalogo"))
-pedidos_df["Precio Unitario"] = pedidos_df["Precio Unitario_catalogo"]
+pedidos_df = pedidos_df.merge(
+    catalogo_df[["Producto", "Precio Unitario"]],
+    on="Producto",
+    how="left",
+    suffixes=("", "_catalogo")
+)
+pedidos_df["Precio Unitario"] = pedidos_df["Precio Unitario_catalogo"].fillna(0)
 pedidos_df.drop(columns=["Precio Unitario_catalogo"], inplace=True)
 
 # Reemplazar valores nulos en "Proveedor"
@@ -112,7 +117,7 @@ if busqueda:
             with st.expander(f"Editar: {row['Producto']}"):
                 cantidad = st.number_input(
                     f"Cantidad ({row['Producto']})",
-                    value=row["Cantidad Solicitada"],
+                    value=int(row["Cantidad Solicitada"]),
                     min_value=0,
                     key=f"busqueda_cantidad_{index}"
                 )
@@ -152,7 +157,7 @@ for i, proveedor in enumerate(proveedores):
                 with sub_col1:
                     cantidad = st.number_input(
                         "Cantidad",
-                        value=row["Cantidad Solicitada"],
+                        value=int(row["Cantidad Solicitada"]),
                         min_value=0,
                         key=f"cantidad_{index}"
                     )
@@ -171,7 +176,7 @@ for i, proveedor in enumerate(proveedores):
                 if modo_admin:
                     nuevo_precio = st.number_input(
                         "Nuevo Precio Unitario:",
-                        value=row["Precio Unitario"],
+                        value=float(row["Precio Unitario"]),
                         min_value=0.0,
                         step=0.01,
                         key=f"nuevo_precio_{index}"
