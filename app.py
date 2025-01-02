@@ -92,6 +92,26 @@ with col2:
             mime="text/csv",
         )
 
+# Función de búsqueda
+st.markdown("### Buscar Artículo")
+busqueda = st.text_input("Introduce el nombre del producto que deseas buscar:")
+if busqueda:
+    resultados = pedidos_df[pedidos_df["Producto"].str.contains(busqueda, case=False, na=False)]
+    if resultados.empty:
+        st.warning("No se encontraron resultados para tu búsqueda.")
+    else:
+        st.markdown("#### Resultados de la búsqueda")
+        for index, row in resultados.iterrows():
+            with st.expander(f"Editar: {row['Producto']}"):
+                cantidad = st.number_input(
+                    f"Cantidad ({row['Producto']})",
+                    value=row["Cantidad Solicitada"],
+                    min_value=0,
+                    key=f"busqueda_cantidad_{index}"
+                )
+                pedidos_df.at[index, "Cantidad Solicitada"] = cantidad
+                pedidos_df.at[index, "Total"] = cantidad * row["Precio Unitario"]
+
 # Mostrar y editar pedidos agrupados por proveedor en dos columnas
 st.markdown("### Pedidos Agrupados por Proveedor")
 proveedores = pedidos_df["Proveedor"].unique()
@@ -108,7 +128,6 @@ if st.button("🔼 Contraer Todo"):
 # Dividir los proveedores en dos columnas
 col1, col2 = st.columns(2)
 unidades_disponibles = ["kg", "g", "l", "ml", "piezas"]
-
 for i, proveedor in enumerate(proveedores):
     col = col1 if i % 2 == 0 else col2
     with col:
@@ -141,23 +160,22 @@ for i, proveedor in enumerate(proveedores):
                     )
                     pedidos_df.at[index, "Unidad"] = unidad
 
-                # Edición del precio unitario con contraseña
-                if st.button(f"Editar Precio Unitario: {row['Producto']}", key=f"editar_precio_{index}"):
-                    contraseña = st.text_input("Introduce la contraseña de administrador:", type="password", key=f"contraseña_{index}")
+                # Edición de precio unitario con contraseña
+                if st.button(f"Editar Precio ({row['Producto']})", key=f"editar_precio_{index}"):
+                    contraseña = st.text_input("Contraseña de administrador", type="password", key=f"password_{index}")
                     if contraseña == "mekima12":
                         nuevo_precio = st.number_input(
                             "Nuevo Precio Unitario",
                             value=row["Precio Unitario"],
                             min_value=0.0,
-                            format="%.2f",
+                            step=0.01,
                             key=f"nuevo_precio_{index}"
                         )
                         if st.button("Actualizar Precio", key=f"actualizar_precio_{index}"):
                             pedidos_df.at[index, "Precio Unitario"] = nuevo_precio
                             pedidos_df.at[index, "Total"] = nuevo_precio * row["Cantidad Solicitada"]
-                            st.success(f"Precio unitario actualizado para {row['Producto']}.")
-                    elif contraseña:
-                        st.error("Contraseña incorrecta.")
+                            st.success("Precio unitario actualizado correctamente.")
+                            st.experimental_rerun()
 
             # Botón para contraer esta sección específica
             if st.button(f"Contraer {proveedor}", key=f"contraer_{proveedor}"):
