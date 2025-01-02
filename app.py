@@ -197,7 +197,7 @@ for i, proveedor in enumerate(proveedores):
                     )
                     pedidos_df.at[index, "Unidad"] = unidad
 
-                # Edición del precio unitario en modo administrador
+                # Edición del precio unitario y unidad base en modo administrador
                 if st.session_state["modo_admin"]:
                     nuevo_precio = st.number_input(
                         "Nuevo Precio Unitario:",
@@ -206,10 +206,16 @@ for i, proveedor in enumerate(proveedores):
                         step=0.01,
                         key=f"nuevo_precio_{index}"
                     )
-                    if st.button("Actualizar Precio", key=f"actualizar_precio_{index}"):
+                    nueva_unidad = st.text_input(
+                        "Unidad Base del Precio:",
+                        value=row.get("Unidad", ""),
+                        key=f"unidad_base_{index}"
+                    )
+                    if st.button("Actualizar Precio y Unidad", key=f"actualizar_precio_{index}"):
                         pedidos_df.at[index, "Precio Unitario"] = nuevo_precio
+                        pedidos_df.at[index, "Unidad"] = nueva_unidad
                         pedidos_df.at[index, "Total"] = nuevo_precio * row["Cantidad Solicitada"]
-                        st.success(f"Precio actualizado para {row['Producto']}.")
+                        st.success(f"Precio y unidad base actualizados para {row['Producto']}.")
                         st.session_state["pedidos_df"] = pedidos_df
 
             # Botón para contraer esta sección específica
@@ -233,6 +239,7 @@ st.dataframe(
 
 # Mostrar el total general
 st.markdown(f"### Total General de Todos los Pedidos: ${total_general:.2f}")
+
 
 
 
