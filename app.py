@@ -137,14 +137,7 @@ for i, proveedor in enumerate(proveedores):
             for index, row in proveedor_df.iterrows():
                 # Mostrar Producto y Precio Unitario
                 st.markdown(f"**{row['Producto']}**")
-                precio_unitario = st.number_input(
-                    "Precio Unitario",
-                    value=row["Precio Unitario"],
-                    min_value=0.0,
-                    step=0.01,
-                    key=f"precio_unitario_{index}"
-                )
-                pedidos_df.at[index, "Precio Unitario"] = precio_unitario
+                st.text(f"Precio Unitario: ${row['Precio Unitario']:.2f}")
 
                 # Cantidad y Unidad
                 sub_col1, sub_col2 = st.columns([1, 1])
@@ -156,7 +149,7 @@ for i, proveedor in enumerate(proveedores):
                         key=f"cantidad_{index}"
                     )
                     pedidos_df.at[index, "Cantidad Solicitada"] = cantidad
-                    pedidos_df.at[index, "Total"] = cantidad * precio_unitario
+                    pedidos_df.at[index, "Total"] = cantidad * row["Precio Unitario"]
                 with sub_col2:
                     unidad = st.text_input(
                         "Unidad",
@@ -164,6 +157,17 @@ for i, proveedor in enumerate(proveedores):
                         key=f"unidad_{index}"
                     )
                     pedidos_df.at[index, "Unidad"] = unidad
+
+                # Edición del precio unitario con contraseña
+                if st.button(f"Editar Precio Unitario: {row['Producto']}", key=f"edit_precio_{index}"):
+                    contraseña = st.text_input("Contraseña de administrador:", type="password", key=f"pass_{index}")
+                    if contraseña == "mekima12":
+                        nuevo_precio = st.number_input("Nuevo Precio Unitario:", value=row["Precio Unitario"], key=f"new_precio_{index}")
+                        if st.button("Actualizar Precio", key=f"update_precio_{index}"):
+                            pedidos_df.at[index, "Precio Unitario"] = nuevo_precio
+                            st.success("Precio actualizado correctamente.")
+                    else:
+                        st.error("Contraseña incorrecta.")
 
             # Botón para contraer esta sección específica
             if st.button(f"Contraer {proveedor}", key=f"contraer_{proveedor}"):
