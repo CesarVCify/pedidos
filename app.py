@@ -158,21 +158,22 @@ for i, proveedor in enumerate(proveedores):
                     )
                     pedidos_df.at[index, "Unidad"] = unidad
 
-                # Actualizar Precio Unitario con contraseña
-                with st.expander("Actualizar Precio Unitario"):
-                    admin_password = st.text_input("Contraseña de Administrador", type="password", key=f"password_{index}")
-                    if admin_password == "mekima12":
+                # Edición del Precio Unitario con Contraseña
+                if st.button(f"Editar Precio Unitario: {row['Producto']}", key=f"editar_precio_{index}"):
+                    password = st.text_input("Ingresa la contraseña para editar el precio unitario:", type="password", key=f"password_precio_{index}")
+                    if password == "mekima12":
                         nuevo_precio = st.number_input(
-                            "Nuevo Precio Unitario",
+                            f"Nuevo Precio Unitario para {row['Producto']}",
                             value=row["Precio Unitario"],
                             min_value=0.0,
                             key=f"nuevo_precio_{index}"
                         )
-                        if st.button("Actualizar Precio", key=f"actualizar_precio_{index}"):
+                        if st.button(f"Guardar Nuevo Precio {row['Producto']}", key=f"guardar_precio_{index}"):
                             pedidos_df.at[index, "Precio Unitario"] = nuevo_precio
                             pedidos_df.at[index, "Total"] = row["Cantidad Solicitada"] * nuevo_precio
-                            # Requiere nueva contraseña tras actualización
-                            st.experimental_rerun()
+                            st.success("Precio actualizado correctamente.")
+                    else:
+                        st.error("Contraseña incorrecta. Inténtalo de nuevo.")
 
             # Botón para contraer esta sección específica
             if st.button(f"Contraer {proveedor}", key=f"contraer_{proveedor}"):
