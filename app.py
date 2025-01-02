@@ -73,8 +73,31 @@ if "pedidos_df" not in st.session_state:
 
 pedidos_df = st.session_state["pedidos_df"]
 
-# Agregar interruptor de modo administrador
-modo_admin = st.sidebar.checkbox("Habilitar modo administrador")
+# Solicitar contraseña para modo administrador
+admin_password_correcta = "mekima12"
+mensaje_error = None
+if "modo_admin" not in st.session_state:
+    st.session_state["modo_admin"] = False
+
+if not st.session_state["modo_admin"]:
+    with st.sidebar:
+        st.markdown("### Activar Modo Administrador")
+        password_input = st.text_input("Contraseña", type="password")
+        if st.button("Activar"):
+            if password_input == admin_password_correcta:
+                st.session_state["modo_admin"] = True
+                st.success("Modo Administrador activado.")
+            else:
+                mensaje_error = "Contraseña incorrecta."
+else:
+    with st.sidebar:
+        st.markdown("### Modo Administrador Activado")
+        if st.button("Desactivar"):
+            st.session_state["modo_admin"] = False
+            st.success("Modo Administrador desactivado.")
+
+if mensaje_error:
+    st.sidebar.error(mensaje_error)
 
 # Función para limpiar cantidades solicitadas
 def limpiar_cantidades():
@@ -168,7 +191,7 @@ for i, proveedor in enumerate(proveedores):
                     pedidos_df.at[index, "Unidad"] = unidad
 
                 # Edición del precio unitario en modo administrador
-                if modo_admin:
+                if st.session_state["modo_admin"]:
                     nuevo_precio = st.number_input(
                         "Nuevo Precio Unitario:",
                         value=row["Precio Unitario"],
