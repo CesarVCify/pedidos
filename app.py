@@ -64,9 +64,13 @@ pedidos_df = pedidos_df.merge(
 )
 
 # Validar si "Unidad Base" existe
+definir_valor_predeterminado = "unidad"
 if "Unidad Base" not in pedidos_df.columns:
-    st.error("Falta la columna 'Unidad Base' en pedidos_df. Verifica las hojas de cálculo.")
-    st.stop()
+    pedidos_df["Unidad Base"] = definir_valor_predeterminado
+
+# Asegurarse de que las columnas necesarias no tengan valores nulos
+pedidos_df["Unidad Base"] = pedidos_df["Unidad Base"].fillna(definir_valor_predeterminado)
+pedidos_df["Precio Unitario"] = pedidos_df["Precio Unitario"].fillna(0)
 
 # Definir factores de conversión
 conversion_factores = {
@@ -81,7 +85,10 @@ def calcular_total(row):
     unidad_base = row.get("Unidad Base", "")
     unidad_pedido = row.get("Unidad", "")
     factor = conversion_factores.get((unidad_pedido, unidad_base), 1)
-    return row.get("Cantidad Solicitada", 0) / factor * row.get("Precio Unitario", 0)
+    try:
+        return row.get("Cantidad Solicitada", 0) / factor * row.get("Precio Unitario", 0)
+    except ZeroDivisionError:
+        return 0
 
 # Actualización del total
 try:
