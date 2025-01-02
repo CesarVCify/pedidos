@@ -69,8 +69,11 @@ if "proveedor_expandido" not in st.session_state:
 
 # Función para limpiar cantidades solicitadas
 def limpiar_cantidades(df):
-    df["Cantidad Solicitada"] = 0
-    df["Total"] = 0
+    confirmacion = st.checkbox("¿Estás seguro de que quieres limpiar todas las cantidades?")
+    if confirmacion:
+        df["Cantidad Solicitada"] = 0
+        df["Total"] = 0
+        st.success("¡Cantidad solicitada reiniciada a 0 para todos los productos!")
     return df
 
 # Botones destacados
@@ -79,7 +82,6 @@ with col1:
     if st.button("🔄 Limpiar Cantidades"):
         pedidos_df = limpiar_cantidades(pedidos_df)
         st.session_state["pedidos_df"] = pedidos_df
-        st.success("¡Cantidad solicitada reiniciada a 0 para todos los productos!")
 with col2:
     if st.button("📥 Descargar Pedidos"):
         pedidos_filtrados = pedidos_df[pedidos_df["Cantidad Solicitada"] > 0]
