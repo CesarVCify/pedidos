@@ -41,8 +41,8 @@ if pedidos_df.empty or catalogo_df.empty:
     st.stop()
 
 # Validar columnas requeridas
-columnas_requeridas_pedidos = ["Producto", "Cantidad Solicitada", "Unidad", "Proveedor"]
-columnas_requeridas_catalogo = ["Producto", "Precio Unitario", "Unidad"]
+columnas_requeridas_pedidos = ["Producto", "Cantidad Solicitada", "Unidad", "Precio Unitario", "Total", "Proveedor"]
+columnas_requeridas_catalogo = ["Producto", "Precio Unitario"]
 
 faltantes_pedidos = [col for col in columnas_requeridas_pedidos if col not in pedidos_df.columns]
 faltantes_catalogo = [col for col in columnas_requeridas_catalogo if col not in catalogo_df.columns]
@@ -55,51 +55,17 @@ if faltantes_catalogo:
     st.error(f"Faltan las siguientes columnas en la hoja del catálogo: {faltantes_catalogo}")
     st.stop()
 
-# Sincronizar precios unitarios y unidades base desde el catálogo
-catalogo_df = catalogo_df.rename(columns={"Unidad": "Unidad Base"})
-pedidos_df = pedidos_df.merge(
-    catalogo_df[["Producto", "Precio Unitario", "Unidad Base"]],
-    on="Producto",
-    how="left"
-)
-
-# Validar si "Unidad Base" y "Precio Unitario" existen y asignar valores predeterminados
-if "Unidad Base" not in pedidos_df.columns:
-    pedidos_df["Unidad Base"] = "unidad"
-if "Precio Unitario" not in pedidos_df.columns:
-    pedidos_df["Precio Unitario"] = 0
-
-# Definir factores de conversión
-conversion_factores = {
-    ("kg", "g"): 1000,
-    ("g", "kg"): 0.001,
-    ("l", "ml"): 1000,
-    ("ml", "l"): 0.001,
-    ("piezas", "piezas"): 1
-}
-
-def calcular_total(row):
-    unidad_base = row.get("Unidad Base", "")
-    unidad_pedido = row.get("Unidad", "")
-    factor = conversion_factores.get((unidad_pedido, unidad_base), 1)
-    try:
-        return row.get("Cantidad Solicitada", 0) / factor * row.get("Precio Unitario", 0)
-    except ZeroDivisionError:
-        return 0
-
-# Actualización del total
-try:
-    pedidos_df["Total"] = pedidos_df.apply(calcular_total, axis=1)
-except KeyError as e:
-    st.error(f"Error de clave en el cálculo del total: {e}")
-    st.stop()
+# Sincronizar precios unitarios desde el catálogo
+pedidos_df = pedidos_df.merge(catalogo_df[["Producto", "Precio Unitario"]], on="Producto", how="left", suffixes=("", "_catalogo"))
+pedidos_df["Precio Unitario"] = pedidos_df["Precio Unitario_catalogo"]
+pedidos_df.drop(columns=["Precio Unitario_catalogo"], inplace=True)
 
 # Reemplazar valores nulos en "Proveedor"
 pedidos_df["Proveedor"] = pedidos_df["Proveedor"].fillna("Desconocido")
 
 # Estado inicial de expansión de proveedores
 if "proveedor_expandido" not in st.session_state:
-    st.session_state["proveedor_expandido"] = {proveedor: False for proveedor in pedidos_df["Proveedor"].unique()}
+    st.session_state.proveedor_expandido = {proveedor: False for proveedor in pedidos_df["Proveedor"].unique()}
 
 # Sincronizar datos globales
 if "pedidos_df" not in st.session_state:
@@ -107,31 +73,8 @@ if "pedidos_df" not in st.session_state:
 
 pedidos_df = st.session_state["pedidos_df"]
 
-# Solicitar contraseña para modo administrador
-admin_password_correcta = "mekima12"
-mensaje_error = None
-if "modo_admin" not in st.session_state:
-    st.session_state["modo_admin"] = False
-
-if not st.session_state["modo_admin"]:
-    with st.sidebar:
-        st.markdown("### Activar Modo Administrador")
-        password_input = st.text_input("Contraseña", type="password")
-        if st.button("Activar"):
-            if password_input == admin_password_correcta:
-                st.session_state["modo_admin"] = True
-                st.success("Modo Administrador activado.")
-            else:
-                mensaje_error = "Contraseña incorrecta."
-else:
-    with st.sidebar:
-        st.markdown("### Modo Administrador Activado")
-        if st.button("Desactivar"):
-            st.session_state["modo_admin"] = False
-            st.success("Modo Administrador desactivado.")
-
-if mensaje_error:
-    st.sidebar.error(mensaje_error)
+# Agregar interruptor de modo administrador
+modo_admin = st.sidebar.checkbox("Habilitar modo administrador")
 
 # Función para limpiar cantidades solicitadas
 def limpiar_cantidades():
@@ -156,10 +99,25 @@ with col2:
             mime="text/csv",
         )
 
-# Resumen de Pedidos por Proveedor
-st.markdown("### Resumen por Proveedor")
-resumen_proveedor = pedidos_df.groupby("Proveedor")["Total"].sum().reset_index()
-st.dataframe(resumen_proveedor, use_container_width=True)
+# Función de búsqueda
+st.markdown("### Buscar Artículo")
+busqueda = st.text_input("Introduce el nombre del producto que deseas buscar:")
+if busqueda:
+    resultados = pedidos_df[pedidos_df["Producto"].str.contains(busqueda, case=False, na=False)]
+    if resultados.empty:
+        st.warning("No se encontraron resultados para tu búsqueda.")
+    else:
+        st.markdown("#### Resultados de la búsqueda")
+        for index, row in resultados.iterrows():
+            with st.expander(f"Editar: {row['Producto']}"):
+                cantidad = st.number_input(
+                    f"Cantidad ({row['Producto']})",
+                    value=row["Cantidad Solicitada"],
+                    min_value=0,
+                    key=f"busqueda_cantidad_{index}"
+                )
+                pedidos_df.at[index, "Cantidad Solicitada"] = cantidad
+                pedidos_df.at[index, "Total"] = cantidad * row["Precio Unitario"]
 
 # Mostrar y editar pedidos agrupados por proveedor en dos columnas
 st.markdown("### Pedidos Agrupados por Proveedor")
@@ -168,11 +126,11 @@ proveedores = pedidos_df["Proveedor"].unique()
 # Botón para expandir/contraer todos
 if st.button("🔽 Expandir Todo"):
     for proveedor in proveedores:
-        st.session_state["proveedor_expandido"][proveedor] = True
+        st.session_state.proveedor_expandido[proveedor] = True
 
 if st.button("🔼 Contraer Todo"):
     for proveedor in proveedores:
-        st.session_state["proveedor_expandido"][proveedor] = False
+        st.session_state.proveedor_expandido[proveedor] = False
 
 # Dividir los proveedores en dos columnas
 col1, col2 = st.columns(2)
@@ -181,13 +139,13 @@ for i, proveedor in enumerate(proveedores):
     col = col1 if i % 2 == 0 else col2
     with col:
         # Usar el estado actual de expansión para cada proveedor
-        with st.expander(f"Proveedor: {proveedor}", expanded=st.session_state["proveedor_expandido"][proveedor]):
+        with st.expander(f"Proveedor: {proveedor}", expanded=st.session_state.proveedor_expandido[proveedor]):
             proveedor_df = pedidos_df[pedidos_df["Proveedor"] == proveedor]
 
             for index, row in proveedor_df.iterrows():
                 # Mostrar Producto y Precio Unitario
                 st.markdown(f"**{row['Producto']}**")
-                st.text(f"Precio Unitario: ${row['Precio Unitario']:.2f} ({row['Unidad Base']})")
+                st.text(f"Precio Unitario: ${row['Precio Unitario']:.2f}")
 
                 # Cantidad y Unidad
                 sub_col1, sub_col2 = st.columns([1, 1])
@@ -199,19 +157,18 @@ for i, proveedor in enumerate(proveedores):
                         key=f"cantidad_{index}"
                     )
                     pedidos_df.at[index, "Cantidad Solicitada"] = cantidad
-                    pedidos_df.at[index, "Total"] = calcular_total(row)
+                    pedidos_df.at[index, "Total"] = cantidad * row["Precio Unitario"]
                 with sub_col2:
                     unidad = st.selectbox(
                         "Unidad",
                         unidades_disponibles,
-                        index=unidades_disponibles.index(row["Unidad"])
-                        if row["Unidad"] in unidades_disponibles else 0,
+                        index=unidades_disponibles.index(row["Unidad"]) if row["Unidad"] in unidades_disponibles else 0,
                         key=f"unidad_{index}"
                     )
                     pedidos_df.at[index, "Unidad"] = unidad
 
                 # Edición del precio unitario en modo administrador
-                if st.session_state["modo_admin"]:
+                if modo_admin:
                     nuevo_precio = st.number_input(
                         "Nuevo Precio Unitario:",
                         value=row["Precio Unitario"],
@@ -221,13 +178,13 @@ for i, proveedor in enumerate(proveedores):
                     )
                     if st.button("Actualizar Precio", key=f"actualizar_precio_{index}"):
                         pedidos_df.at[index, "Precio Unitario"] = nuevo_precio
-                        pedidos_df.at[index, "Total"] = calcular_total(row)
+                        pedidos_df.at[index, "Total"] = nuevo_precio * row["Cantidad Solicitada"]
                         st.success(f"Precio actualizado para {row['Producto']}.")
                         st.session_state["pedidos_df"] = pedidos_df
 
             # Botón para contraer esta sección específica
             if st.button(f"Contraer {proveedor}", key=f"contraer_{proveedor}"):
-                st.session_state["proveedor_expandido"][proveedor] = False
+                st.session_state.proveedor_expandido[proveedor] = False
 
 # Actualizar el estado global de pedidos
 st.session_state["pedidos_df"] = pedidos_df
