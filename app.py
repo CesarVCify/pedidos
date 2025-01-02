@@ -63,16 +63,18 @@ pedidos_df = pedidos_df.merge(
     how="left"
 )
 
-# Asegurarse de que las columnas necesarias existan
-if "Total" not in pedidos_df.columns:
-    pedidos_df["Total"] = 0
+# Validar si "Unidad Base" existe
+if "Unidad Base" not in pedidos_df.columns:
+    st.error("Falta la columna 'Unidad Base' en pedidos_df. Verifica las hojas de cálculo.")
+    st.stop()
 
 # Definir factores de conversión
 conversion_factores = {
     ("kg", "g"): 1000,
     ("g", "kg"): 0.001,
     ("l", "ml"): 1000,
-    ("ml", "l"): 0.001
+    ("ml", "l"): 0.001,
+    ("piezas", "piezas"): 1
 }
 
 def calcular_total(row):
@@ -81,7 +83,12 @@ def calcular_total(row):
     factor = conversion_factores.get((unidad_pedido, unidad_base), 1)
     return row.get("Cantidad Solicitada", 0) / factor * row.get("Precio Unitario", 0)
 
-pedidos_df["Total"] = pedidos_df.apply(calcular_total, axis=1)
+# Actualización del total
+try:
+    pedidos_df["Total"] = pedidos_df.apply(calcular_total, axis=1)
+except KeyError as e:
+    st.error(f"Error de clave en el cálculo del total: {e}")
+    st.stop()
 
 # Reemplazar valores nulos en "Proveedor"
 pedidos_df["Proveedor"] = pedidos_df["Proveedor"].fillna("Desconocido")
