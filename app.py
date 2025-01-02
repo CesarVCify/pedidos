@@ -131,3 +131,14 @@ if st.button("📤 Actualizar Precios en Google Sheets"):
     except Exception as e:
         st.error(f"Error al actualizar precios: {e}")
 
+# Mostrar el resumen general de pedidos filtrado
+st.markdown("### Resumen General de Pedidos")
+pedido_resumen = pedidos_df[pedidos_df["Cantidad Solicitada"] > 0]  # Filtrar pedidos con cantidad > 0
+
+if pedido_resumen.empty:
+    st.info("No hay productos con cantidad mayor a cero.")
+else:
+    st.dataframe(
+        pedido_resumen[["Producto", "Cantidad Solicitada", "Unidad", "Precio Unitario", "Total", "Proveedor"]],
+        use_container_width=True,
+    )
