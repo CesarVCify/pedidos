@@ -100,7 +100,17 @@ if busqueda:
     if resultados.empty:
         st.warning("No se encontraron resultados para tu búsqueda.")
     else:
-        st.dataframe(resultados)
+        st.markdown("#### Resultados de la búsqueda")
+        for index, row in resultados.iterrows():
+            st.markdown(f"**{row['Producto']}**")
+            cantidad = st.number_input(
+                f"Cantidad ({row['Producto']})",
+                value=row["Cantidad Solicitada"],
+                min_value=0,
+                key=f"busqueda_cantidad_{index}"
+            )
+            pedidos_df.at[index, "Cantidad Solicitada"] = cantidad
+            pedidos_df.at[index, "Total"] = cantidad * row["Precio Unitario"]
 
 # Mostrar y editar pedidos agrupados por proveedor en dos columnas
 st.markdown("### Pedidos Agrupados por Proveedor")
@@ -162,3 +172,4 @@ st.dataframe(
     pedidos_filtrados[["Producto", "Cantidad Solicitada", "Unidad", "Precio Unitario", "Total", "Proveedor"]],
     use_container_width=True,
 )
+
