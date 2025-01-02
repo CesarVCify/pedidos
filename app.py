@@ -190,6 +190,7 @@ pedidos_filtrados = pedidos_df[pedidos_df["Cantidad Solicitada"] > 0]
 st.dataframe(
     pedidos_filtrados[["Producto", "Cantidad Solicitada", "Unidad", "Precio Unitario", "Total", "Proveedor"]],
     use_container_width=True,
+)
 
 
 
