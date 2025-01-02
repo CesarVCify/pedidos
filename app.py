@@ -63,6 +63,7 @@ pedidos_df = pedidos_df.merge(
     suffixes=("", "_catalogo")
 )
 pedidos_df["Precio Unitario"] = pedidos_df["Precio Unitario_catalogo"].fillna(0)
+pedidos_df["Unidad Base"] = catalogo_df.set_index("Producto").loc[pedidos_df["Producto"], "Unidad"].values
 pedidos_df.drop(columns=["Precio Unitario_catalogo"], inplace=True)
 
 # Reemplazar valores nulos en "Proveedor"
@@ -173,9 +174,9 @@ for i, proveedor in enumerate(proveedores):
             proveedor_df = pedidos_df[pedidos_df["Proveedor"] == proveedor]
 
             for index, row in proveedor_df.iterrows():
-                # Mostrar Producto y Precio Unitario
+                # Mostrar Producto, Precio Unitario y Unidad Base
                 st.markdown(f"**{row['Producto']}**")
-                st.text(f"Precio Unitario: ${row['Precio Unitario']:.2f}")
+                st.text(f"Precio Unitario: ${row['Precio Unitario']:.2f} / {row['Unidad Base']}")
 
                 # Cantidad y Unidad
                 sub_col1, sub_col2 = st.columns([1, 1])
@@ -208,12 +209,12 @@ for i, proveedor in enumerate(proveedores):
                     )
                     nueva_unidad = st.text_input(
                         "Unidad Base del Precio:",
-                        value=row.get("Unidad", ""),
+                        value=row.get("Unidad Base", ""),
                         key=f"unidad_base_{index}"
                     )
                     if st.button("Actualizar Precio y Unidad", key=f"actualizar_precio_{index}"):
                         pedidos_df.at[index, "Precio Unitario"] = nuevo_precio
-                        pedidos_df.at[index, "Unidad"] = nueva_unidad
+                        pedidos_df.at[index, "Unidad Base"] = nueva_unidad
                         pedidos_df.at[index, "Total"] = nuevo_precio * row["Cantidad Solicitada"]
                         st.success(f"Precio y unidad base actualizados para {row['Producto']}.")
                         st.session_state["pedidos_df"] = pedidos_df
@@ -232,13 +233,14 @@ pedidos_filtrados = pedidos_df[pedidos_df["Cantidad Solicitada"] > 0]
 pedidos_contador = pedidos_filtrados.groupby("Proveedor")["Cantidad Solicitada"].sum().reset_index(name="Productos Totales")
 st.dataframe(
     pedidos_filtrados.merge(pedidos_contador, on="Proveedor", how="left")[
-        ["Producto", "Cantidad Solicitada", "Unidad", "Precio Unitario", "Total", "Proveedor", "Productos Totales"]
+        ["Producto", "Cantidad Solicitada", "Unidad", "Precio Unitario", "Unidad Base", "Total", "Proveedor", "Productos Totales"]
     ],
     use_container_width=True,
 )
 
 # Mostrar el total general
 st.markdown(f"### Total General de Todos los Pedidos: ${total_general:.2f}")
+
 
 
 
