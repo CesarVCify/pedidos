@@ -166,7 +166,7 @@ for i, proveedor in enumerate(proveedores):
                     pedidos_df.at[index, "Unidad"] = unidad
 
                 # Edición del precio unitario con contraseña
-                if st.button(f"Editar Precio: {row['Producto']}", key=f"editar_precio_{index}"):
+                if st.button(f"Editar Precio Unitario: {row['Producto']}", key=f"editar_precio_{index}"):
                     contraseña = st.text_input("Introduce la contraseña de administrador:", type="password", key=f"password_{index}")
                     if contraseña == admin_password:
                         nuevo_precio = st.number_input("Nuevo Precio Unitario:", min_value=0.0, value=row["Precio Unitario"], key=f"nuevo_precio_{index}")
@@ -174,7 +174,9 @@ for i, proveedor in enumerate(proveedores):
                             pedidos_df.at[index, "Precio Unitario"] = nuevo_precio
                             pedidos_df.at[index, "Total"] = nuevo_precio * row["Cantidad Solicitada"]
                             st.success("Precio unitario actualizado correctamente.")
-                            # Aquí se puede guardar nuevamente en Google Sheets si es necesario
+                            # Reflejar cambios globales
+                            st.session_state["pedidos_df"] = pedidos_df
+                            st.experimental_rerun()
                     elif contraseña:
                         st.error("Contraseña incorrecta.")
 
