@@ -160,6 +160,31 @@ for i, proveedor in enumerate(proveedores):
                     )
                     pedidos_df.at[index, "Unidad"] = unidad
 
+                # Edición de precio unitario con contraseña
+                with st.expander("Actualizar Precio Unitario"):
+                    if f"auth_{index}" not in st.session_state:
+                        st.session_state[f"auth_{index}"] = False
+
+                    if not st.session_state[f"auth_{index}"]:
+                        password = st.text_input("Contraseña de Administrador", type="password", key=f"password_{index}")
+                        if password == "mekima12":
+                            st.session_state[f"auth_{index}"] = True
+                            st.success("Contraseña correcta. Ahora puede actualizar el precio unitario.")
+                        elif password:
+                            st.error("Contraseña incorrecta.")
+                    else:
+                        nuevo_precio = st.number_input(
+                            "Nuevo Precio Unitario",
+                            value=row["Precio Unitario"],
+                            min_value=0.0,
+                            key=f"nuevo_precio_{index}"
+                        )
+                        if st.button("Actualizar Precio", key=f"actualizar_precio_{index}"):
+                            pedidos_df.at[index, "Precio Unitario"] = nuevo_precio
+                            pedidos_df.at[index, "Total"] = nuevo_precio * row["Cantidad Solicitada"]
+                            st.session_state[f"auth_{index}"] = False
+                            st.success("Precio actualizado correctamente.")
+
             # Botón para contraer esta sección específica
             if st.button(f"Contraer {proveedor}", key=f"contraer_{proveedor}"):
                 st.session_state.proveedor_expandido[proveedor] = False
