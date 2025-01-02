@@ -161,23 +161,22 @@ for i, proveedor in enumerate(proveedores):
                     )
                     pedidos_df.at[index, "Unidad"] = unidad
 
-                # Edición del precio unitario
+                # Edición del precio unitario con contraseña
                 if st.button(f"Editar Precio: {row['Producto']}", key=f"editar_precio_{index}"):
-                    password = st.text_input("Introduce la contraseña de administrador:", type="password", key=f"password_{index}")
-                    if password == admin_password:
-                        nuevo_precio = st.number_input(
-                            "Nuevo Precio Unitario",
-                            value=row["Precio Unitario"],
-                            min_value=0.0,
-                            format="%.2f",
-                            key=f"nuevo_precio_{index}"
-                        )
+                    contraseña = st.text_input("Introduce la contraseña de administrador:", type="password", key=f"password_{index}")
+                    if contraseña == admin_password:
+                        nuevo_precio = st.number_input("Nuevo Precio Unitario:", min_value=0.0, value=row["Precio Unitario"], key=f"nuevo_precio_{index}")
                         if st.button("Actualizar Precio", key=f"actualizar_precio_{index}"):
                             pedidos_df.at[index, "Precio Unitario"] = nuevo_precio
                             pedidos_df.at[index, "Total"] = nuevo_precio * row["Cantidad Solicitada"]
-                            st.success(f"Precio actualizado a ${nuevo_precio:.2f} para {row['Producto']}.")
-                    elif password:
+                            st.success("Precio unitario actualizado correctamente.")
+                            # Aquí se puede guardar nuevamente en Google Sheets si es necesario
+                    elif contraseña:
                         st.error("Contraseña incorrecta.")
+
+            # Botón para contraer esta sección específica
+            if st.button(f"Contraer {proveedor}", key=f"contraer_{proveedor}"):
+                st.session_state.proveedor_expandido[proveedor] = False
 
 # Actualizar el estado global de pedidos
 st.session_state["pedidos_df"] = pedidos_df
