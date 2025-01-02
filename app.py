@@ -1,3 +1,4 @@
+import streamlit as st
 import pandas as pd
 from datetime import datetime
 import gspread
@@ -65,6 +66,10 @@ pedidos_df["Proveedor"] = pedidos_df["Proveedor"].fillna("Desconocido")
 # Estado inicial de expansión de proveedores
 if "proveedor_expandido" not in st.session_state:
     st.session_state.proveedor_expandido = {proveedor: False for proveedor in pedidos_df["Proveedor"].unique()}
+
+# Estado inicial para edición de precios
+if "editar_precio" not in st.session_state:
+    st.session_state.editar_precio = {}
 
 # Función para limpiar cantidades solicitadas
 def limpiar_cantidades(df):
@@ -159,9 +164,20 @@ for i, proveedor in enumerate(proveedores):
                     )
                     pedidos_df.at[index, "Unidad"] = unidad
 
-            # Botón para contraer esta sección específica
-            if st.button(f"Contraer {proveedor}", key=f"contraer_{proveedor}"):
-                st.session_state.proveedor_expandido[proveedor] = False
+                # Botón para editar precio unitario
+                if st.button(f"Editar Precio: {row['Producto']}", key=f"editar_precio_{index}"):
+                    st.session_state.editar_precio[index] = True
+
+                # Mostrar campo para editar precio unitario si se ha activado la edición
+                if st.session_state.editar_precio.get(index, False):
+                    contraseña = st.text_input("Introduce la contraseña de administrador:", type="password", key=f"contraseña_{index}")
+                    if contraseña == "mekima12":
+                        nuevo_precio = st.number_input("Nuevo Precio Unitario:", value=row["Precio Unitario"], key=f"nuevo_precio_{index}")
+                        if st.button("Actualizar Precio", key=f"actualizar_precio_{index}"):
+                            pedidos_df.at[index, "Precio Unitario"] = nuevo_precio
+                            pedidos_df.at[index, "Total"] = pedidos_df.at[index, "Cantidad Solicitada"] * nuevo_precio
+                            st.session_state.editar_precio[index] = False
+                            st.success("¡Precio unitario actualizado correctamente!")
 
 # Actualizar el estado global de pedidos
 st.session_state["pedidos_df"] = pedidos_df
