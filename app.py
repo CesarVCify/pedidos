@@ -127,7 +127,7 @@ if st.button("🔼 Contraer Todo"):
 
 # Dividir los proveedores en dos columnas
 col1, col2 = st.columns(2)
-unidades_comunes = ["kg", "g", "l", "ml", "piezas"]
+unidades_disponibles = ["kg", "g", "l", "ml", "piezas"]
 for i, proveedor in enumerate(proveedores):
     col = col1 if i % 2 == 0 else col2
     with col:
@@ -154,8 +154,8 @@ for i, proveedor in enumerate(proveedores):
                 with sub_col2:
                     unidad = st.selectbox(
                         "Unidad",
-                        unidades_comunes,
-                        index=unidades_comunes.index(row["Unidad"]) if row["Unidad"] in unidades_comunes else 0,
+                        unidades_disponibles,
+                        index=unidades_disponibles.index(row["Unidad"]) if row["Unidad"] in unidades_disponibles else 0,
                         key=f"unidad_{index}"
                     )
                     pedidos_df.at[index, "Unidad"] = unidad
@@ -171,9 +171,6 @@ st.session_state["pedidos_df"] = pedidos_df
 st.markdown("### Resumen General de Pedidos")
 pedidos_filtrados = pedidos_df[pedidos_df["Cantidad Solicitada"] > 0]
 st.dataframe(
-    pedidos_filtrados[["Producto", "Cantidad Solicitada", "Unidad", "Precio Unitario", "Total", "Proveedor"]],
-    use_container_width=True,
-)
     pedidos_filtrados[["Producto", "Cantidad Solicitada", "Unidad", "Precio Unitario", "Total", "Proveedor"]],
     use_container_width=True,
 )
