@@ -137,17 +137,7 @@ for i, proveedor in enumerate(proveedores):
             for index, row in proveedor_df.iterrows():
                 # Mostrar Producto y Precio Unitario
                 st.markdown(f"**{row['Producto']}**")
-                precio_unitario = st.number_input(
-                    f"Precio Unitario ({row['Producto']})",
-                    value=row["Precio Unitario"],
-                    min_value=0.0,
-                    step=0.01,
-                    key=f"precio_unitario_{index}"
-                )
-
-                if precio_unitario != row["Precio Unitario"]:
-                    pedidos_df.at[index, "Precio Unitario"] = precio_unitario
-                    pedidos_df.at[index, "Total"] = precio_unitario * row["Cantidad Solicitada"]
+                st.text(f"Precio Unitario: ${row['Precio Unitario']:.2f}")
 
                 # Cantidad y Unidad
                 sub_col1, sub_col2 = st.columns([1, 1])
@@ -159,7 +149,7 @@ for i, proveedor in enumerate(proveedores):
                         key=f"cantidad_{index}"
                     )
                     pedidos_df.at[index, "Cantidad Solicitada"] = cantidad
-                    pedidos_df.at[index, "Total"] = cantidad * pedidos_df.at[index, "Precio Unitario"]
+                    pedidos_df.at[index, "Total"] = cantidad * row["Precio Unitario"]
                 with sub_col2:
                     unidad = st.text_input(
                         "Unidad",
@@ -167,6 +157,25 @@ for i, proveedor in enumerate(proveedores):
                         key=f"unidad_{index}"
                     )
                     pedidos_df.at[index, "Unidad"] = unidad
+
+                # Edición de precio unitario con contraseña
+                with st.expander("Actualizar Precio Unitario"):
+                    admin_password = st.text_input("Introduce la contraseña para editar:", type="password", key=f"password_{index}")
+                    if admin_password == "mekima12":
+                        nuevo_precio = st.number_input(
+                            "Nuevo Precio Unitario",
+                            value=row["Precio Unitario"],
+                            min_value=0.0,
+                            key=f"nuevo_precio_{index}"
+                        )
+                        if st.button("Actualizar Precio", key=f"actualizar_precio_{index}"):
+                            pedidos_df.at[index, "Precio Unitario"] = nuevo_precio
+                            pedidos_df.at[index, "Total"] = nuevo_precio * row["Cantidad Solicitada"]
+                            catalogo_sheet = client.open_by_key(ID_CATALOGO).sheet1
+                            cell = catalogo_sheet.find(row["Producto"])
+                            catalogo_sheet.update_cell(cell.row, cell.col + 1, nuevo_precio)
+                            st.success("Precio unitario actualizado correctamente.")
+                            st.experimental_rerun()
 
             # Botón para contraer esta sección específica
             if st.button(f"Contraer {proveedor}", key=f"contraer_{proveedor}"):
