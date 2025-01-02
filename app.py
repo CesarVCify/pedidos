@@ -63,10 +63,9 @@ pedidos_df = pedidos_df.merge(
     how="left"
 )
 
-# Validar si "Unidad Base" existe
+# Validar si "Unidad Base" existe, si no, crearla con valores por defecto
 if "Unidad Base" not in pedidos_df.columns:
-    st.error("Falta la columna 'Unidad Base' en pedidos_df. Verifica las hojas de cálculo.")
-    st.stop()
+    pedidos_df["Unidad Base"] = pedidos_df["Unidad"]
 
 # Definir factores de conversión
 conversion_factores = {
@@ -78,12 +77,16 @@ conversion_factores = {
 }
 
 def calcular_total(row):
-    unidad_base = row.get("Unidad Base", "")
-    unidad_pedido = row.get("Unidad", "")
-    factor = conversion_factores.get((unidad_pedido, unidad_base), 1)
-    return row.get("Cantidad Solicitada", 0) / factor * row.get("Precio Unitario", 0)
+    try:
+        unidad_base = row.get("Unidad Base", "")
+        unidad_pedido = row.get("Unidad", "")
+        factor = conversion_factores.get((unidad_pedido, unidad_base), 1)
+        return row.get("Cantidad Solicitada", 0) / factor * row.get("Precio Unitario", 0)
+    except Exception as e:
+        st.error(f"Error al calcular el total para {row['Producto']}: {e}")
+        return 0
 
-# Actualización del total
+# Recalcular el total
 try:
     pedidos_df["Total"] = pedidos_df.apply(calcular_total, axis=1)
 except KeyError as e:
