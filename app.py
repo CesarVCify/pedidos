@@ -64,8 +64,10 @@ pedidos_df = pedidos_df.merge(
 )
 
 # Validar si "Unidad Base" y "Precio Unitario" existen y asignar valores predeterminados
-pedidos_df["Unidad Base"] = pedidos_df["Unidad Base"].fillna("unidad")
-pedidos_df["Precio Unitario"] = pedidos_df["Precio Unitario"].fillna(0)
+if "Unidad Base" not in pedidos_df.columns:
+    pedidos_df["Unidad Base"] = "unidad"
+if "Precio Unitario" not in pedidos_df.columns:
+    pedidos_df["Precio Unitario"] = 0
 
 # Definir factores de conversión
 conversion_factores = {
@@ -166,11 +168,11 @@ proveedores = pedidos_df["Proveedor"].unique()
 # Botón para expandir/contraer todos
 if st.button("🔽 Expandir Todo"):
     for proveedor in proveedores:
-        st.session_state.proveedor_expandido[proveedor] = True
+        st.session_state["proveedor_expandido"][proveedor] = True
 
 if st.button("🔼 Contraer Todo"):
     for proveedor in proveedores:
-        st.session_state.proveedor_expandido[proveedor] = False
+        st.session_state["proveedor_expandido"][proveedor] = False
 
 # Dividir los proveedores en dos columnas
 col1, col2 = st.columns(2)
@@ -179,7 +181,7 @@ for i, proveedor in enumerate(proveedores):
     col = col1 if i % 2 == 0 else col2
     with col:
         # Usar el estado actual de expansión para cada proveedor
-        with st.expander(f"Proveedor: {proveedor}", expanded=st.session_state.proveedor_expandido[proveedor]):
+        with st.expander(f"Proveedor: {proveedor}", expanded=st.session_state["proveedor_expandido"][proveedor]):
             proveedor_df = pedidos_df[pedidos_df["Proveedor"] == proveedor]
 
             for index, row in proveedor_df.iterrows():
@@ -225,7 +227,7 @@ for i, proveedor in enumerate(proveedores):
 
             # Botón para contraer esta sección específica
             if st.button(f"Contraer {proveedor}", key=f"contraer_{proveedor}"):
-                st.session_state.proveedor_expandido[proveedor] = False
+                st.session_state["proveedor_expandido"][proveedor] = False
 
 # Actualizar el estado global de pedidos
 st.session_state["pedidos_df"] = pedidos_df
@@ -237,6 +239,7 @@ st.dataframe(
     pedidos_filtrados[["Producto", "Cantidad Solicitada", "Unidad", "Precio Unitario", "Total", "Proveedor"]],
     use_container_width=True,
 )
+
 
 
 
