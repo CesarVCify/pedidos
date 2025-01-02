@@ -1,9 +1,3 @@
-import streamlit as st
-import pandas as pd
-from datetime import datetime
-import gspread
-from google.oauth2.service_account import Credentials
-
 # Configuración de los IDs de las hojas de Google Sheets
 ID_PEDIDOS = "106heHrtrvtaBVl13lvhqUzXlhLF7c3NFrbANXO1-FJk"
 ID_CATALOGO = "1ERtd0fm2FY8-Pm72J3kl8J05T2ryG_fR91kOfPlPrfQ"
@@ -160,21 +154,9 @@ for i, proveedor in enumerate(proveedores):
                     )
                     pedidos_df.at[index, "Unidad"] = unidad
 
-                # Edición de Precio Unitario
-                if st.button(f"Editar Precio: {row['Producto']}", key=f"edit_precio_btn_{index}"):
-                    password = st.text_input("Introduce la contraseña de administrador:", type="password", key=f"password_{index}")
-                    if password == "mekima12":
-                        nuevo_precio = st.number_input(
-                            f"Nuevo Precio para {row['Producto']}",
-                            value=row["Precio Unitario"],
-                            min_value=0.0,
-                            step=0.01,
-                            key=f"nuevo_precio_{index}"
-                        )
-                        if st.button("Actualizar Precio", key=f"update_precio_{index}"):
-                            pedidos_df.at[index, "Precio Unitario"] = nuevo_precio
-                            pedidos_df.at[index, "Total"] = nuevo_precio * row["Cantidad Solicitada"]
-                            st.success(f"Precio unitario actualizado para {row['Producto']}")
+            # Botón para contraer esta sección específica
+            if st.button(f"Contraer {proveedor}", key=f"contraer_{proveedor}"):
+                st.session_state.proveedor_expandido[proveedor] = False
 
 # Actualizar el estado global de pedidos
 st.session_state["pedidos_df"] = pedidos_df
@@ -186,4 +168,3 @@ st.dataframe(
     pedidos_filtrados[["Producto", "Cantidad Solicitada", "Unidad", "Precio Unitario", "Total", "Proveedor"]],
     use_container_width=True,
 )
-
