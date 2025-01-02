@@ -27,6 +27,15 @@ def cargar_hoja(sheet_id):
         st.error(f"Error al cargar la hoja con ID {sheet_id}: {e}")
         return pd.DataFrame()
 
+# Función para guardar datos en Google Sheets
+def guardar_hoja(sheet_id, df):
+    try:
+        sheet = client.open_by_key(sheet_id).sheet1
+        sheet.clear()
+        sheet.update([df.columns.values.tolist()] + df.values.tolist())
+    except Exception as e:
+        st.error(f"Error al guardar datos en la hoja con ID {sheet_id}: {e}")
+
 # Configurar la página
 st.set_page_config(page_title="Gestión de Pedidos", layout="wide")
 st.title("Gestión de Pedidos")
@@ -158,15 +167,22 @@ for i, proveedor in enumerate(proveedores):
                     )
                     pedidos_df.at[index, "Unidad"] = unidad
 
-                # Edición del precio unitario con contraseña
-                if st.button(f"Editar Precio Unitario: {row['Producto']}", key=f"edit_precio_{index}"):
-                    contraseña = st.text_input("Contraseña de administrador:", type="password", key=f"pass_{index}")
+                # Sección para actualizar el precio unitario
+                with st.expander("Actualizar Precio Unitario"):
+                    contraseña = st.text_input("Contraseña de Administrador", type="password", key=f"password_{index}")
                     if contraseña == "mekima12":
-                        nuevo_precio = st.number_input("Nuevo Precio Unitario:", value=row["Precio Unitario"], key=f"new_precio_{index}")
-                        if st.button("Actualizar Precio", key=f"update_precio_{index}"):
+                        nuevo_precio = st.number_input(
+                            "Nuevo Precio Unitario",
+                            value=row["Precio Unitario"],
+                            min_value=0.0,
+                            key=f"nuevo_precio_{index}"
+                        )
+                        if st.button("Guardar Precio", key=f"guardar_precio_{index}"):
                             pedidos_df.at[index, "Precio Unitario"] = nuevo_precio
-                            st.success("Precio actualizado correctamente.")
-                    else:
+                            catalogo_df.loc[catalogo_df["Producto"] == row["Producto"], "Precio Unitario"] = nuevo_precio
+                            guardar_hoja(ID_CATALOGO, catalogo_df)
+                            st.success(f"Precio unitario actualizado para {row['Producto']}.")
+                    elif contraseña:
                         st.error("Contraseña incorrecta.")
 
             # Botón para contraer esta sección específica
