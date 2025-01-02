@@ -118,11 +118,13 @@ with col1:
 with col2:
     if st.button("📥 Descargar Pedidos"):
         pedidos_filtrados = pedidos_df[pedidos_df["Cantidad Solicitada"] > 0]
+        pedidos_contador = pedidos_filtrados.groupby("Proveedor").size().reset_index(name="Productos")
+        pedidos_final = pd.merge(pedidos_filtrados, pedidos_contador, on="Proveedor", how="left")
         fecha_actual = datetime.now().strftime('%Y-%m-%d')
         nombre_csv = f"Pedidos_Actualizados_{fecha_actual}.csv"
         st.download_button(
             label="Descargar CSV",
-            data=pedidos_filtrados.to_csv(index=False).encode("utf-8"),
+            data=pedidos_final.to_csv(index=False).encode("utf-8"),
             file_name=nombre_csv,
             mime="text/csv",
         )
@@ -217,13 +219,17 @@ for i, proveedor in enumerate(proveedores):
 # Actualizar el estado global de pedidos
 st.session_state["pedidos_df"] = pedidos_df
 
-# Mostrar la tabla actualizada con filtro de cantidades > 0
+# Mostrar la tabla actualizada con contador por proveedor
 st.markdown("### Resumen General de Pedidos")
 pedidos_filtrados = pedidos_df[pedidos_df["Cantidad Solicitada"] > 0]
+pedidos_contador = pedidos_filtrados.groupby("Proveedor").size().reset_index(name="Productos")
 st.dataframe(
-    pedidos_filtrados[["Producto", "Cantidad Solicitada", "Unidad", "Precio Unitario", "Total", "Proveedor"]],
+    pedidos_filtrados.merge(pedidos_contador, on="Proveedor", how="left")[
+        ["Producto", "Cantidad Solicitada", "Unidad", "Precio Unitario", "Total", "Proveedor", "Productos"]
+    ],
     use_container_width=True,
 )
+
 
 
 
