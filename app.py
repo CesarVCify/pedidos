@@ -41,8 +41,8 @@ if pedidos_df.empty or catalogo_df.empty:
     st.stop()
 
 # Validar columnas requeridas
-columnas_requeridas_pedidos = ["Producto", "Cantidad Solicitada", "Unidad", "Precio Unitario", "Total", "Proveedor"]
-columnas_requeridas_catalogo = ["Producto", "Precio Unitario"]
+columnas_requeridas_pedidos = ["Producto", "Cantidad Solicitada", "Unidad", "Total", "Proveedor"]
+columnas_requeridas_catalogo = ["Producto", "Precio Unitario", "Unidad"]
 
 faltantes_pedidos = [col for col in columnas_requeridas_pedidos if col not in pedidos_df.columns]
 faltantes_catalogo = [col for col in columnas_requeridas_catalogo if col not in catalogo_df.columns]
@@ -55,10 +55,29 @@ if faltantes_catalogo:
     st.error(f"Faltan las siguientes columnas en la hoja del catálogo: {faltantes_catalogo}")
     st.stop()
 
-# Sincronizar precios unitarios desde el catálogo
-pedidos_df = pedidos_df.merge(catalogo_df[["Producto", "Precio Unitario"]], on="Producto", how="left", suffixes=("", "_catalogo"))
-pedidos_df["Precio Unitario"] = pedidos_df["Precio Unitario_catalogo"]
-pedidos_df.drop(columns=["Precio Unitario_catalogo"], inplace=True)
+# Sincronizar precios unitarios y unidades base desde el catálogo
+catalogo_df = catalogo_df.rename(columns={"Unidad": "Unidad Base"})
+pedidos_df = pedidos_df.merge(
+    catalogo_df[["Producto", "Precio Unitario", "Unidad Base"]],
+    on="Producto",
+    how="left"
+)
+
+# Definir factores de conversión
+conversion_factores = {
+    ("kg", "g"): 1000,
+    ("g", "kg"): 0.001,
+    ("l", "ml"): 1000,
+    ("ml", "l"): 0.001
+}
+
+def calcular_total(row):
+    unidad_base = row["Unidad Base"]
+    unidad_pedido = row["Unidad"]
+    factor = conversion_factores.get((unidad_pedido, unidad_base), 1)
+    return row["Cantidad Solicitada"] / factor * row["Precio Unitario"]
+
+pedidos_df["Total"] = pedidos_df.apply(calcular_total, axis=1)
 
 # Reemplazar valores nulos en "Proveedor"
 pedidos_df["Proveedor"] = pedidos_df["Proveedor"].fillna("Desconocido")
@@ -122,25 +141,10 @@ with col2:
             mime="text/csv",
         )
 
-# Función de búsqueda
-st.markdown("### Buscar Artículo")
-busqueda = st.text_input("Introduce el nombre del producto que deseas buscar:")
-if busqueda:
-    resultados = pedidos_df[pedidos_df["Producto"].str.contains(busqueda, case=False, na=False)]
-    if resultados.empty:
-        st.warning("No se encontraron resultados para tu búsqueda.")
-    else:
-        st.markdown("#### Resultados de la búsqueda")
-        for index, row in resultados.iterrows():
-            with st.expander(f"Editar: {row['Producto']}"):
-                cantidad = st.number_input(
-                    f"Cantidad ({row['Producto']})",
-                    value=row["Cantidad Solicitada"],
-                    min_value=0,
-                    key=f"busqueda_cantidad_{index}"
-                )
-                pedidos_df.at[index, "Cantidad Solicitada"] = cantidad
-                pedidos_df.at[index, "Total"] = cantidad * row["Precio Unitario"]
+# Resumen de Pedidos por Proveedor
+st.markdown("### Resumen por Proveedor")
+resumen_proveedor = pedidos_df.groupby("Proveedor")["Total"].sum().reset_index()
+st.dataframe(resumen_proveedor, use_container_width=True)
 
 # Mostrar y editar pedidos agrupados por proveedor en dos columnas
 st.markdown("### Pedidos Agrupados por Proveedor")
@@ -168,7 +172,7 @@ for i, proveedor in enumerate(proveedores):
             for index, row in proveedor_df.iterrows():
                 # Mostrar Producto y Precio Unitario
                 st.markdown(f"**{row['Producto']}**")
-                st.text(f"Precio Unitario: ${row['Precio Unitario']:.2f}")
+                st.text(f"Precio Unitario: ${row['Precio Unitario']:.2f} ({row['Unidad Base']})")
 
                 # Cantidad y Unidad
                 sub_col1, sub_col2 = st.columns([1, 1])
@@ -180,12 +184,13 @@ for i, proveedor in enumerate(proveedores):
                         key=f"cantidad_{index}"
                     )
                     pedidos_df.at[index, "Cantidad Solicitada"] = cantidad
-                    pedidos_df.at[index, "Total"] = cantidad * row["Precio Unitario"]
+                    pedidos_df.at[index, "Total"] = calcular_total(row)
                 with sub_col2:
                     unidad = st.selectbox(
                         "Unidad",
                         unidades_disponibles,
-                        index=unidades_disponibles.index(row["Unidad"]) if row["Unidad"] in unidades_disponibles else 0,
+                        index=unidades_disponibles.index(row["Unidad"])
+                        if row["Unidad"] in unidades_disponibles else 0,
                         key=f"unidad_{index}"
                     )
                     pedidos_df.at[index, "Unidad"] = unidad
@@ -201,7 +206,7 @@ for i, proveedor in enumerate(proveedores):
                     )
                     if st.button("Actualizar Precio", key=f"actualizar_precio_{index}"):
                         pedidos_df.at[index, "Precio Unitario"] = nuevo_precio
-                        pedidos_df.at[index, "Total"] = nuevo_precio * row["Cantidad Solicitada"]
+                        pedidos_df.at[index, "Total"] = calcular_total(row)
                         st.success(f"Precio actualizado para {row['Producto']}.")
                         st.session_state["pedidos_df"] = pedidos_df
 
@@ -219,6 +224,7 @@ st.dataframe(
     pedidos_filtrados[["Producto", "Cantidad Solicitada", "Unidad", "Precio Unitario", "Total", "Proveedor"]],
     use_container_width=True,
 )
+
 
 
 
