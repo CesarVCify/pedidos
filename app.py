@@ -41,7 +41,7 @@ if pedidos_df.empty or catalogo_df.empty:
     st.stop()
 
 # Validar columnas requeridas
-columnas_requeridas_pedidos = ["Producto", "Cantidad Solicitada", "Unidad", "Total", "Proveedor"]
+columnas_requeridas_pedidos = ["Producto", "Cantidad Solicitada", "Unidad", "Proveedor"]
 columnas_requeridas_catalogo = ["Producto", "Precio Unitario", "Unidad"]
 
 faltantes_pedidos = [col for col in columnas_requeridas_pedidos if col not in pedidos_df.columns]
@@ -63,6 +63,10 @@ pedidos_df = pedidos_df.merge(
     how="left"
 )
 
+# Asegurarse de que las columnas necesarias existan
+if "Total" not in pedidos_df.columns:
+    pedidos_df["Total"] = 0
+
 # Definir factores de conversión
 conversion_factores = {
     ("kg", "g"): 1000,
@@ -72,10 +76,10 @@ conversion_factores = {
 }
 
 def calcular_total(row):
-    unidad_base = row["Unidad Base"]
-    unidad_pedido = row["Unidad"]
+    unidad_base = row.get("Unidad Base", "")
+    unidad_pedido = row.get("Unidad", "")
     factor = conversion_factores.get((unidad_pedido, unidad_base), 1)
-    return row["Cantidad Solicitada"] / factor * row["Precio Unitario"]
+    return row.get("Cantidad Solicitada", 0) / factor * row.get("Precio Unitario", 0)
 
 pedidos_df["Total"] = pedidos_df.apply(calcular_total, axis=1)
 
@@ -224,6 +228,7 @@ st.dataframe(
     pedidos_filtrados[["Producto", "Cantidad Solicitada", "Unidad", "Precio Unitario", "Total", "Proveedor"]],
     use_container_width=True,
 )
+
 
 
 
