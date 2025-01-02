@@ -128,6 +128,16 @@ if st.button("🔼 Contraer Todo"):
 # Dividir los proveedores en dos columnas
 col1, col2 = st.columns(2)
 unidades_disponibles = ["kg", "g", "l", "ml", "piezas"]
+
+# Contraseña de administrador para edición de precio
+if "admin_authenticated" not in st.session_state:
+    st.session_state["admin_authenticated"] = False
+
+admin_password = st.text_input("Introduce la contraseña de administrador para editar el precio unitario:", type="password")
+if admin_password == "mekima12":
+    st.session_state["admin_authenticated"] = True
+    st.success("Acceso de administrador concedido. Ahora puedes editar los precios unitarios.")
+
 for i, proveedor in enumerate(proveedores):
     col = col1 if i % 2 == 0 else col2
     with col:
@@ -160,30 +170,20 @@ for i, proveedor in enumerate(proveedores):
                     )
                     pedidos_df.at[index, "Unidad"] = unidad
 
-                # Edición de precio unitario con contraseña
-                with st.expander("Actualizar Precio Unitario"):
-                    if f"auth_{index}" not in st.session_state:
-                        st.session_state[f"auth_{index}"] = False
-
-                    if not st.session_state[f"auth_{index}"]:
-                        password = st.text_input("Contraseña de Administrador", type="password", key=f"password_{index}")
-                        if password == "mekima12":
-                            st.session_state[f"auth_{index}"] = True
-                            st.success("Contraseña correcta. Ahora puede actualizar el precio unitario.")
-                        elif password:
-                            st.error("Contraseña incorrecta.")
-                    else:
-                        nuevo_precio = st.number_input(
-                            "Nuevo Precio Unitario",
-                            value=row["Precio Unitario"],
-                            min_value=0.0,
-                            key=f"nuevo_precio_{index}"
-                        )
-                        if st.button("Actualizar Precio", key=f"actualizar_precio_{index}"):
-                            pedidos_df.at[index, "Precio Unitario"] = nuevo_precio
-                            pedidos_df.at[index, "Total"] = nuevo_precio * row["Cantidad Solicitada"]
-                            st.session_state[f"auth_{index}"] = False
-                            st.success("Precio actualizado correctamente.")
+                # Edición de precio unitario
+                if st.session_state["admin_authenticated"]:
+                    nuevo_precio = st.number_input(
+                        f"Actualizar Precio Unitario ({row['Producto']})",
+                        value=row["Precio Unitario"],
+                        min_value=0.0,
+                        step=0.1,
+                        key=f"precio_{index}"
+                    )
+                    if st.button(f"Guardar Precio ({row['Producto']})", key=f"guardar_precio_{index}"):
+                        pedidos_df.at[index, "Precio Unitario"] = nuevo_precio
+                        pedidos_df.at[index, "Total"] = nuevo_precio * row["Cantidad Solicitada"]
+                        st.success(f"Precio unitario actualizado para {row['Producto']}.")
+                        st.session_state["admin_authenticated"] = False
 
             # Botón para contraer esta sección específica
             if st.button(f"Contraer {proveedor}", key=f"contraer_{proveedor}"):
