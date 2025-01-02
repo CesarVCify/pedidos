@@ -73,6 +73,12 @@ def limpiar_cantidades(df):
     df["Total"] = 0
     return df
 
+# Función para verificar contraseña de administrador
+def verificar_contraseña():
+    contraseña_correcta = "admin123"
+    contraseña_ingresada = st.text_input("Ingresa la contraseña de administrador para actualizar el precio unitario:", type="password")
+    return contraseña_ingresada == contraseña_correcta
+
 # Botones destacados
 col1, col2 = st.columns(2)
 with col1:
@@ -111,6 +117,22 @@ if busqueda:
                 )
                 pedidos_df.at[index, "Cantidad Solicitada"] = cantidad
                 pedidos_df.at[index, "Total"] = cantidad * row["Precio Unitario"]
+
+                if verificar_contraseña():
+                    nuevo_precio = st.number_input(
+                        "Nuevo Precio Unitario",
+                        value=row["Precio Unitario"],
+                        min_value=0.0,
+                        key=f"precio_{index}"
+                    )
+                    pedidos_df.at[index, "Precio Unitario"] = nuevo_precio
+                    # Actualizar en Google Sheets
+                    try:
+                        sheet = client.open_by_key(ID_PEDIDOS).sheet1
+                        sheet.update_cell(index + 2, pedidos_df.columns.get_loc("Precio Unitario") + 1, nuevo_precio)
+                        st.success(f"Precio actualizado para {row['Producto']}.")
+                    except Exception as e:
+                        st.error(f"Error al actualizar el precio: {e}")
 
 # Mostrar y editar pedidos agrupados por proveedor en dos columnas
 st.markdown("### Pedidos Agrupados por Proveedor")
