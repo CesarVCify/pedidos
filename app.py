@@ -83,6 +83,7 @@ def calcular_total(row):
 
 pedidos_df["Total"] = pedidos_df.apply(calcular_total, axis=1)
 
+
 # Reemplazar valores nulos en "Proveedor"
 pedidos_df["Proveedor"] = pedidos_df["Proveedor"].fillna("Desconocido")
 
@@ -95,6 +96,26 @@ if "pedidos_df" not in st.session_state:
     st.session_state["pedidos_df"] = pedidos_df
 
 pedidos_df = st.session_state["pedidos_df"]
+
+# Validar si "Unidad Base" existe
+if "Unidad Base" not in pedidos_df.columns:
+    st.error("Falta la columna 'Unidad Base' en pedidos_df. Verifica las hojas de cálculo.")
+    st.stop()
+
+# Recalcular totales considerando las unidades base y las conversiones
+def calcular_total(row):
+    unidad_base = row.get("Unidad Base", "")
+    unidad_pedido = row.get("Unidad", "")
+    factor = conversion_factores.get((unidad_pedido, unidad_base), 1)
+    return row.get("Cantidad Solicitada", 0) / factor * row.get("Precio Unitario", 0)
+
+# Actualización del total
+try:
+    pedidos_df["Total"] = pedidos_df.apply(calcular_total, axis=1)
+except KeyError as e:
+    st.error(f"Error de clave en el cálculo del total: {e}")
+    st.stop()
+
 
 # Solicitar contraseña para modo administrador
 admin_password_correcta = "mekima12"
