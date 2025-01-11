@@ -175,7 +175,11 @@ for i, proveedor in enumerate(proveedores):
             for index, row in proveedor_df.iterrows():
                 # Mostrar Producto y Precio Unitario
                 st.markdown(f"**{row['Producto']}**")
-                st.text(f"Precio Unitario: ${row['Precio Unitario']:.2f}")
+                precio_unitario = row.get("Precio Unitario", 0)
+                if pd.notnull(precio_unitario):
+                    st.text(f"Precio Unitario: ${precio_unitario:.2f}")
+                else:
+                    st.text("Precio Unitario: No disponible")
 
                 # Cantidad y Unidad
                 sub_col1, sub_col2 = st.columns([1, 1])
