@@ -176,8 +176,9 @@ for i, proveedor in enumerate(proveedores):
                 # Mostrar Producto y Precio Unitario
                 st.markdown(f"**{row['Producto']}**")
                 precio_unitario = row.get("Precio Unitario", 0)
+                unidad_precio = row.get("Unidad", "")
                 if pd.notnull(precio_unitario):
-                    st.text(f"Precio Unitario: ${precio_unitario:.2f}")
+                    st.text(f"Precio Unitario: ${precio_unitario:.2f} ({unidad_precio})")
                 else:
                     st.text("Precio Unitario: No disponible")
 
@@ -243,6 +244,7 @@ st.dataframe(
 
 # Mostrar el total general
 st.markdown(f"### Total General de Todos los Pedidos: ${total_general:.2f}")
+
 
 
 
