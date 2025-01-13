@@ -115,7 +115,45 @@ def descargar_insumos():
     insumos_df = st.session_state["insumos_df"]
     output = BytesIO()
     with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
-        insumos_df.to_excel
+        insumos_df.to_excel(writer, index=False, sheet_name="Insumos")
+    output.seek(0)
+    return output
+
+# Mostrar insumos en un dataframe interactivo
+st.markdown("#### Lista de Insumos")
+insumos_df = st.session_state["insumos_df"]
+if not insumos_df.empty:
+    st.dataframe(insumos_df)
+else:
+    st.info("No hay insumos registrados.")
+
+# Formulario para agregar nuevos insumos
+st.markdown("#### Agregar Insumo")
+with st.form("form_agregar_insumo"):
+    producto = st.text_input("Nombre del Producto", "")
+    precio = st.number_input("Precio Unitario", min_value=0.0, step=0.01, value=0.0)
+    proveedor = st.text_input("Proveedor", "")
+    lugar_comercial = st.text_input("Lugar Comercial", "")
+    submitted = st.form_submit_button("Agregar")
+
+    if submitted:
+        if producto and proveedor and lugar_comercial:
+            agregar_insumo(producto, precio, proveedor, lugar_comercial)
+            st.success(f"Insumo '{producto}' agregado correctamente.")
+        else:
+            st.error("Por favor, completa todos los campos antes de agregar un insumo.")
+
+# Botón para descargar insumos
+st.markdown("#### Descargar Insumos")
+if not insumos_df.empty:
+    excel_file = descargar_insumos()
+    st.download_button(
+        label="Descargar Insumos en Excel",
+        data=excel_file,
+        file_name="insumos.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+
 
 
 
