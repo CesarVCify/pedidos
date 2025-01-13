@@ -1,249 +1,104 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime
-import gspread
-from google.oauth2.service_account import Credentials
 
-# Configuración de los IDs de las hojas de Google Sheets
-ID_PEDIDOS = "106heHrtrvtaBVl13lvhqUzXlhLF7c3NFrbANXO1-FJk"
-ID_CATALOGO = "1ERtd0fm2FY8-Pm72J3kl8J05T2ryG_fR91kOfPlPrfQ"
+# Configuración inicial de la página
+st.set_page_config(page_title="Gestión de Insumos", layout="wide")
+st.title("Gestión de Insumos")
+st.markdown("### Agrega, edita y elimina insumos de forma sencilla.")
 
-# Alcances requeridos
-SCOPES = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+# Crear un DataFrame inicial vacío o con algunos insumos de ejemplo
+if "insumos_df" not in st.session_state:
+    st.session_state["insumos_df"] = pd.DataFrame(columns=["Producto", "Precio Unitario", "Proveedor"])
 
-# Cargar credenciales desde los secrets de Streamlit
-creds = Credentials.from_service_account_info(
-    st.secrets["google_credentials"], scopes=SCOPES
-)
-client = gspread.authorize(creds)
+# Función para agregar un nuevo insumo
+def agregar_insumo(producto, precio, proveedor):
+    nuevo_insumo = {
+        "Producto": producto,
+        "Precio Unitario": precio,
+        "Proveedor": proveedor
+    }
+    st.session_state["insumos_df"] = pd.concat([
+        st.session_state["insumos_df"],
+        pd.DataFrame([nuevo_insumo])
+    ], ignore_index=True)
 
-# Función para cargar datos desde Google Sheets
-def cargar_hoja(sheet_id):
+# Función para eliminar un insumo
+def eliminar_insumo(index):
+    st.session_state["insumos_df"] = st.session_state["insumos_df"].drop(index).reset_index(drop=True)
+
+# Función para descargar los insumos como un archivo Excel
+def descargar_insumos():
+    insumos_df = st.session_state["insumos_df"]
+    output = pd.ExcelWriter("insumos.xlsx", engine="xlsxwriter")
+    insumos_df.to_excel(output, index=False, sheet_name="Insumos")
+    output.seek(0)
+    return output
+
+# Función para cargar insumos desde un archivo Excel
+def cargar_insumos(file):
     try:
-        sheet = client.open_by_key(sheet_id).sheet1
-        data = pd.DataFrame(sheet.get_all_records())
-        return data
+        nuevo_df = pd.read_excel(file)
+        if set(["Producto", "Precio Unitario", "Proveedor"]).issubset(nuevo_df.columns):
+            st.session_state["insumos_df"] = pd.concat([
+                st.session_state["insumos_df"], nuevo_df
+            ], ignore_index=True)
+            st.success("Insumos cargados correctamente.")
+        else:
+            st.error("El archivo debe contener las columnas: 'Producto', 'Precio Unitario', 'Proveedor'.")
     except Exception as e:
-        st.error(f"Error al cargar la hoja con ID {sheet_id}: {e}")
-        return pd.DataFrame()
+        st.error(f"Error al cargar el archivo: {e}")
 
-# Configurar la página
-st.set_page_config(page_title="Gestión de Pedidos", layout="wide")
-st.title("Gestión de Pedidos")
-st.markdown("### Administra, edita y organiza tus pedidos de forma rápida y sencilla.")
+# Formulario para agregar insumos
+st.markdown("#### Agregar Insumo")
+with st.form("form_agregar_insumo"):
+    producto = st.text_input("Nombre del Producto", "")
+    precio = st.number_input("Precio Unitario", min_value=0.0, step=0.01, value=0.0)
+    proveedor = st.text_input("Proveedor", "")
+    submitted = st.form_submit_button("Agregar")
 
-# Cargar datos
-pedidos_df = cargar_hoja(ID_PEDIDOS)
-catalogo_df = cargar_hoja(ID_CATALOGO)
+    if submitted:
+        if producto and proveedor:
+            agregar_insumo(producto, precio, proveedor)
+            st.success(f"Insumo '{producto}' agregado correctamente.")
+        else:
+            st.error("Por favor, completa todos los campos antes de agregar un insumo.")
 
-if pedidos_df.empty or catalogo_df.empty:
-    st.warning("No se pudieron cargar los datos. Verifica que las hojas sean públicas y los IDs sean correctos.")
-    st.stop()
+# Sección para cargar insumos desde un archivo Excel
+st.markdown("#### Cargar Insumos desde un Archivo")
+cargar_file = st.file_uploader("Sube un archivo Excel con los insumos", type=["xlsx"])
+if cargar_file:
+    cargar_insumos(cargar_file)
 
-# Validar columnas requeridas
-columnas_requeridas_pedidos = ["Producto", "Cantidad Solicitada", "Unidad", "Proveedor"]
-columnas_requeridas_catalogo = ["Producto", "Precio Unitario"]
-
-faltantes_pedidos = [col for col in columnas_requeridas_pedidos if col not in pedidos_df.columns]
-faltantes_catalogo = [col for col in columnas_requeridas_catalogo if col not in catalogo_df.columns]
-
-if faltantes_pedidos:
-    st.error(f"Faltan las siguientes columnas en la hoja de pedidos: {faltantes_pedidos}")
-    st.stop()
-
-if faltantes_catalogo:
-    st.error(f"Faltan las siguientes columnas en la hoja del catálogo: {faltantes_catalogo}")
-    st.stop()
-
-# Sincronizar precios unitarios desde el catálogo
-pedidos_df = pedidos_df.merge(
-    catalogo_df[["Producto", "Precio Unitario"]],
-    on="Producto",
-    how="left",
-    suffixes=("", "_catalogo")
-)
-pedidos_df["Precio Unitario"] = pedidos_df["Precio Unitario_catalogo"].fillna(0)
-pedidos_df.drop(columns=["Precio Unitario_catalogo"], inplace=True)
-
-# Reemplazar valores nulos en "Proveedor"
-pedidos_df["Proveedor"] = pedidos_df["Proveedor"].fillna("Desconocido")
-
-# Estado inicial de expansión de proveedores
-if "proveedor_expandido" not in st.session_state:
-    st.session_state.proveedor_expandido = {proveedor: False for proveedor in pedidos_df["Proveedor"].unique()}
-
-# Sincronizar datos globales
-if "pedidos_df" not in st.session_state:
-    st.session_state["pedidos_df"] = pedidos_df
-
-pedidos_df = st.session_state["pedidos_df"]
-
-# Solicitar contraseña para modo administrador
-admin_password_correcta = "mekima12"
-mensaje_error = None
-if "modo_admin" not in st.session_state:
-    st.session_state["modo_admin"] = False
-
-if not st.session_state["modo_admin"]:
-    with st.sidebar:
-        st.markdown("### Activar Modo Administrador")
-        password_input = st.text_input("Contraseña", type="password")
-        if st.button("Activar"):
-            if password_input == admin_password_correcta:
-                st.session_state["modo_admin"] = True
-                st.success("Modo Administrador activado.")
-            else:
-                mensaje_error = "Contraseña incorrecta."
+# Mostrar y editar los insumos existentes
+st.markdown("#### Lista de Insumos")
+insumos_df = st.session_state["insumos_df"]
+if not insumos_df.empty:
+    for index, row in insumos_df.iterrows():
+        with st.expander(f"{row['Producto']}"):
+            col1, col2, col3 = st.columns([3, 1, 1])
+            with col1:
+                st.text_input("Producto", value=row["Producto"], key=f"producto_{index}", disabled=True)
+            with col2:
+                st.number_input("Precio Unitario", value=row["Precio Unitario"], key=f"precio_{index}", disabled=True)
+            with col3:
+                st.text_input("Proveedor", value=row["Proveedor"], key=f"proveedor_{index}", disabled=True)
+            if st.button("Eliminar", key=f"eliminar_{index}"):
+                eliminar_insumo(index)
+                st.warning(f"Insumo '{row['Producto']}' eliminado correctamente.")
 else:
-    with st.sidebar:
-        st.markdown("### Modo Administrador Activado")
-        if st.button("Desactivar"):
-            st.session_state["modo_admin"] = False
-            st.success("Modo Administrador desactivado.")
+    st.info("No hay insumos registrados.")
 
-if mensaje_error:
-    st.sidebar.error(mensaje_error)
+# Botón para descargar insumos
+st.markdown("#### Descargar Insumos")
+if not insumos_df.empty:
+    excel_file = descargar_insumos()
+    st.download_button(
+        label="Descargar Insumos en Excel",
+        data=excel_file.getvalue(),
+        file_name="insumos.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
 
-# Función para limpiar cantidades solicitadas
-def limpiar_cantidades():
-    st.session_state["pedidos_df"]["Cantidad Solicitada"] = 0
-    st.session_state["pedidos_df"]["Total"] = 0
-    st.success("¡Cantidad solicitada reiniciada a 0 para todos los productos!")
-
-# Botones destacados
-col1, col2 = st.columns(2)
-with col1:
-    if st.button("🔄 Limpiar Cantidades"):
-        limpiar_cantidades()
-with col2:
-    if st.button("📥 Descargar Pedidos"):
-        pedidos_filtrados = pedidos_df[pedidos_df["Cantidad Solicitada"] > 0]
-        pedidos_contador = pedidos_filtrados.groupby("Proveedor")["Cantidad Solicitada"].sum().reset_index(name="Productos Totales")
-        pedidos_final = pd.merge(pedidos_filtrados, pedidos_contador, on="Proveedor", how="left")
-        fecha_actual = datetime.now().strftime('%Y-%m-%d')
-        nombre_csv = f"Pedidos_Actualizados_{fecha_actual}.csv"
-        st.download_button(
-            label="Descargar CSV",
-            data=pedidos_final.to_csv(index=False).encode("utf-8"),
-            file_name=nombre_csv,
-            mime="text/csv",
-        )
-
-# Función de búsqueda
-st.markdown("### Buscar Artículo")
-busqueda = st.text_input("Introduce el nombre del producto que deseas buscar:")
-if busqueda:
-    resultados = pedidos_df[pedidos_df["Producto"].str.contains(busqueda, case=False, na=False)]
-    if resultados.empty:
-        st.warning("No se encontraron resultados para tu búsqueda.")
-    else:
-        st.markdown("#### Resultados de la búsqueda")
-        for index, row in resultados.iterrows():
-            with st.expander(f"Editar: {row['Producto']}"):
-                cantidad = st.number_input(
-                    f"Cantidad ({row['Producto']})",
-                    value=int(row["Cantidad Solicitada"]),
-                    min_value=0,
-                    key=f"busqueda_cantidad_{index}"
-                )
-                pedidos_df.at[index, "Cantidad Solicitada"] = cantidad
-                pedidos_df.at[index, "Total"] = cantidad * row["Precio Unitario"]
-
-# Mostrar y editar pedidos agrupados por proveedor en dos columnas
-st.markdown("### Pedidos Agrupados por Proveedor")
-proveedores = pedidos_df["Proveedor"].unique()
-
-# Botón para expandir/contraer todos
-if st.button("🔽 Expandir Todo"):
-    for proveedor in proveedores:
-        st.session_state.proveedor_expandido[proveedor] = True
-
-if st.button("🔼 Contraer Todo"):
-    for proveedor in proveedores:
-        st.session_state.proveedor_expandido[proveedor] = False
-
-# Dividir los proveedores en dos columnas
-col1, col2 = st.columns(2)
-unidades_disponibles = ["kg", "g", "l", "ml", "piezas"]
-for i, proveedor in enumerate(proveedores):
-    col = col1 if i % 2 == 0 else col2
-    with col:
-        # Usar el estado actual de expansión para cada proveedor
-        with st.expander(f"Proveedor: {proveedor}", expanded=st.session_state.proveedor_expandido[proveedor]):
-            proveedor_df = pedidos_df[pedidos_df["Proveedor"] == proveedor]
-
-            for index, row in proveedor_df.iterrows():
-                # Mostrar Producto y Precio Unitario
-                st.markdown(f"**{row['Producto']}**")
-                precio_unitario = row.get("Precio Unitario", 0)
-                unidad_precio = row.get("Unidad", "")
-                if pd.notnull(precio_unitario):
-                    st.text(f"Precio Unitario: ${precio_unitario:.2f} ({unidad_precio})")
-                else:
-                    st.text("Precio Unitario: No disponible")
-
-                # Cantidad y Unidad
-                sub_col1, sub_col2 = st.columns([1, 1])
-                with sub_col1:
-                    cantidad = st.number_input(
-                        "Cantidad",
-                        value=int(row["Cantidad Solicitada"]),
-                        min_value=0,
-                        key=f"cantidad_{index}"
-                    )
-                    pedidos_df.at[index, "Cantidad Solicitada"] = cantidad
-                    pedidos_df.at[index, "Total"] = cantidad * row["Precio Unitario"]
-                with sub_col2:
-                    unidad = st.selectbox(
-                        "Unidad",
-                        unidades_disponibles,
-                        index=unidades_disponibles.index(row["Unidad"]) if row["Unidad"] in unidades_disponibles else 0,
-                        key=f"unidad_{index}"
-                    )
-                    pedidos_df.at[index, "Unidad"] = unidad
-
-                # Edición del precio unitario y unidad base en modo administrador
-                if st.session_state["modo_admin"]:
-                    nuevo_precio = st.number_input(
-                        "Nuevo Precio Unitario:",
-                        value=float(row["Precio Unitario"]),
-                        min_value=0.0,
-                        step=0.01,
-                        key=f"nuevo_precio_{index}"
-                    )
-                    nueva_unidad = st.text_input(
-                        "Unidad Base del Precio:",
-                        value=row.get("Unidad", ""),
-                        key=f"unidad_base_{index}"
-                    )
-                    if st.button("Actualizar Precio y Unidad", key=f"actualizar_precio_{index}"):
-                        pedidos_df.at[index, "Precio Unitario"] = nuevo_precio
-                        pedidos_df.at[index, "Unidad"] = nueva_unidad
-                        pedidos_df.at[index, "Total"] = nuevo_precio * row["Cantidad Solicitada"]
-                        st.success(f"Precio y unidad base actualizados para {row['Producto']}.")
-                        st.session_state["pedidos_df"] = pedidos_df
-
-            # Botón para contraer esta sección específica
-            if st.button(f"Contraer {proveedor}", key=f"contraer_{proveedor}"):
-                st.session_state.proveedor_expandido[proveedor] = False
-
-# Actualizar el estado global de pedidos
-st.session_state["pedidos_df"] = pedidos_df
-
-# Mostrar la tabla actualizada con contador por proveedor y total general
-total_general = pedidos_df["Total"].sum()
-st.markdown("### Resumen General de Pedidos")
-pedidos_filtrados = pedidos_df[pedidos_df["Cantidad Solicitada"] > 0]
-pedidos_contador = pedidos_filtrados.groupby("Proveedor")["Cantidad Solicitada"].sum().reset_index(name="Productos Totales")
-st.dataframe(
-    pedidos_filtrados.merge(pedidos_contador, on="Proveedor", how="left")[
-        ["Producto", "Cantidad Solicitada", "Unidad", "Precio Unitario", "Total", "Proveedor", "Productos Totales"]
-    ],
-    use_container_width=True,
-)
-
-# Mostrar el total general
-st.markdown(f"### Total General de Todos los Pedidos: ${total_general:.2f}")
 
 
 
