@@ -153,6 +153,15 @@ if not insumos_df.empty:
         file_name="insumos.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
+    if os.path.exists(INSUMOS_FILE):
+    with open(INSUMOS_FILE, "rb") as file:
+        st.download_button(
+            label="Descargar archivo CSV de insumos predeterminados",
+            data=file,
+            file_name=INSUMOS_FILE,
+            mime="text/csv"
+        )
+
 
 
 
