@@ -115,73 +115,7 @@ def descargar_insumos():
     insumos_df = st.session_state["insumos_df"]
     output = BytesIO()
     with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
-        insumos_df.to_excel(writer, index=False, sheet_name="Insumos")
-    output.seek(0)
-    return output
-
-# Función para cargar insumos desde un archivo Excel
-def cargar_insumos(file):
-    try:
-        nuevo_df = pd.read_excel(file)
-        if set(["Producto", "Precio Unitario", "Proveedor", "Lugar Comercial"]).issubset(nuevo_df.columns):
-            nuevo_df = nuevo_df[["Producto", "Precio Unitario", "Proveedor", "Lugar Comercial"]]
-            st.session_state["insumos_df"] = pd.concat([
-                st.session_state["insumos_df"], nuevo_df
-            ], ignore_index=True)
-            guardar_predeterminados()
-            st.success("Insumos cargados correctamente.")
-        else:
-            st.error("El archivo debe contener las columnas: 'Producto', 'Precio Unitario', 'Proveedor', 'Lugar Comercial'.")
-    except Exception as e:
-        st.error(f"Error al cargar el archivo: {e}")
-
-# Formulario para agregar insumos
-st.markdown("#### Agregar Insumo")
-with st.form("form_agregar_insumo"):
-    producto = st.text_input("Nombre del Producto", "")
-    precio = st.number_input("Precio Unitario", min_value=0.0, step=0.01, value=0.0)
-    proveedor = st.text_input("Proveedor", "")
-    lugar_comercial = st.text_input("Lugar Comercial", "")
-    submitted = st.form_submit_button("Agregar")
-
-    if submitted:
-        if producto and proveedor and lugar_comercial:
-            agregar_insumo(producto, precio, proveedor, lugar_comercial)
-            st.success(f"Insumo '{producto}' agregado correctamente.")
-        else:
-            st.error("Por favor, completa todos los campos antes de agregar un insumo.")
-
-# Sección para cargar insumos desde un archivo Excel
-st.markdown("#### Cargar Insumos desde un Archivo")
-cargar_file = st.file_uploader("Sube un archivo Excel con los insumos", type=["xlsx"])
-if cargar_file:
-    cargar_insumos(cargar_file)
-
-# Mostrar y editar los insumos existentes
-st.markdown("#### Lista de Insumos")
-insumos_df = st.session_state["insumos_df"]
-if not insumos_df.empty:
-    st.dataframe(insumos_df)
-
-    # Seleccionar un insumo para eliminar
-    st.markdown("#### Eliminar Insumo")
-    index_to_delete = st.number_input("Índice del insumo a eliminar", min_value=0, max_value=len(insumos_df)-1, step=1, format="%d")
-    if st.button("Eliminar Insumo"):
-        eliminar_insumo(index_to_delete)
-        st.warning(f"Insumo en el índice {index_to_delete} eliminado correctamente.")
-else:
-    st.info("No hay insumos registrados.")
-
-# Botón para descargar insumos
-st.markdown("#### Descargar Insumos")
-if not insumos_df.empty:
-    excel_file = descargar_insumos()
-    st.download_button(
-        label="Descargar Insumos en Excel",
-        data=excel_file,
-        file_name="insumos.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
+        insumos_df.to_excel
 
 
 
