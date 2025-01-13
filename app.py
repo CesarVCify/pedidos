@@ -127,6 +127,13 @@ if not insumos_df.empty:
 else:
     st.info("No hay insumos registrados.")
 
+# Botón para mostrar el contenido del archivo CSV
+if st.button("Mostrar contenido del archivo CSV"):
+    if os.path.exists(INSUMOS_FILE):
+        st.write(pd.read_csv(INSUMOS_FILE))
+    else:
+        st.warning("El archivo CSV no existe.")
+
 # Formulario para agregar nuevos insumos
 st.markdown("#### Agregar Insumo")
 with st.form("form_agregar_insumo"):
@@ -153,14 +160,7 @@ if not insumos_df.empty:
         file_name="insumos.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
-    if os.path.exists(INSUMOS_FILE):
-    with open(INSUMOS_FILE, "rb") as file:
-        st.download_button(
-            label="Descargar archivo CSV de insumos predeterminados",
-            data=file,
-            file_name=INSUMOS_FILE,
-            mime="text/csv"
-        )
+
 
 
 
