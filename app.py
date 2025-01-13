@@ -81,8 +81,6 @@ else:
         {"Producto": "Tisana de frutos rojos", "Precio Unitario": 800.0, "Proveedor": "Jorge", "Lugar Comercial": "Tés y tisanas"},
         {"Producto": "Zarzamora", "Precio Unitario": 60.0, "Proveedor": "Oswald", "Lugar Comercial": "Circuito Cuahutemoc"}
     ])
-
-    ])
     insumos_predeterminados.to_csv(INSUMOS_FILE, index=False)
 
 # Cargar insumos predeterminados al estado de sesión
