@@ -150,6 +150,12 @@ with st.form("form_agregar_insumo"):
         else:
             st.error("Por favor, completa todos los campos antes de agregar un insumo.")
 
+# Botón para establecer una nueva lista de insumos predeterminados
+st.markdown("#### Nueva Lista de Insumos Predeterminados")
+if st.button("Actualizar insumos predeterminados con la lista actual"):
+    guardar_predeterminados()
+    st.success("La lista de insumos predeterminados ha sido actualizada.")
+
 # Botón para descargar insumos
 st.markdown("#### Descargar Insumos")
 if not insumos_df.empty:
