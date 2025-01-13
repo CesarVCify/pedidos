@@ -65,13 +65,27 @@ if submitted:
     df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
     st.success("Producto agregado exitosamente.")
 
+# Delete a product
+st.subheader("Eliminar un producto")
+with st.form("delete_product_form"):
+    product_to_delete = st.text_input("Nombre del producto a eliminar")
+    delete_submitted = st.form_submit_button("Eliminar Producto")
+
+if delete_submitted:
+    if product_to_delete in df["Producto"].values:
+        df = df[df["Producto"] != product_to_delete]
+        st.success(f"Producto '{product_to_delete}' eliminado exitosamente.")
+    else:
+        st.error(f"Producto '{product_to_delete}' no encontrado.")
+
 # Save the updated data
 if st.button("Guardar Cambios"):
     try:
-        save_data(sheet_name, data)
+        save_data(sheet_name, df)
         st.success("Datos guardados correctamente")
     except Exception as e:
         st.error(f"Error al guardar datos: {e}")
+
 
 
 
