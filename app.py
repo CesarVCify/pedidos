@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 from io import BytesIO
-pip install openpyxl
+
 
 # Configuración inicial de la página
 st.set_page_config(page_title="Gestión de Insumos", layout="wide")
