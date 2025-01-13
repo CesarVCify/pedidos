@@ -60,6 +60,21 @@ def descargar_insumos():
     output.seek(0)
     return output
 
+# Función para cargar insumos desde un archivo subido por el usuario
+def cargar_insumos_desde_archivo(file):
+    try:
+        nuevo_df = pd.read_excel(file)
+        if set(["Producto", "Precio Unitario", "Proveedor", "Lugar Comercial"]).issubset(nuevo_df.columns):
+            st.session_state["insumos_df"] = pd.concat([
+                st.session_state["insumos_df"], nuevo_df
+            ], ignore_index=True)
+            guardar_insumos(st.session_state["insumos_df"])
+            st.success("Insumos cargados correctamente.")
+        else:
+            st.error("El archivo debe contener las columnas: 'Producto', 'Precio Unitario', 'Proveedor', 'Lugar Comercial'.")
+    except Exception as e:
+        st.error(f"Error al cargar el archivo: {e}")
+
 # Mostrar insumos en un dataframe interactivo
 st.markdown("#### Lista de Insumos")
 insumos_df = st.session_state["insumos_df"]
@@ -83,6 +98,12 @@ with st.form("form_agregar_insumo"):
             st.success(f"Insumo '{producto}' agregado correctamente.")
         else:
             st.error("Por favor, completa todos los campos antes de agregar un insumo.")
+
+# Botón para cargar insumos desde un archivo
+st.markdown("#### Cargar Insumos desde Archivo")
+cargar_file = st.file_uploader("Sube un archivo Excel con los insumos", type=["xlsx"])
+if cargar_file:
+    cargar_insumos_desde_archivo(cargar_file)
 
 # Botón para eliminar insumos seleccionados
 st.markdown("#### Eliminar Insumo")
@@ -111,6 +132,7 @@ if not insumos_df.empty:
         file_name="insumos.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
+
 
 
 
