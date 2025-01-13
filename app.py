@@ -61,15 +61,14 @@ def descargar_insumos():
     return output
 
 # Función para cargar insumos desde un archivo subido por el usuario
+# Ahora reemplaza la lista actual y guarda como predeterminada
 def cargar_insumos_desde_archivo(file):
     try:
         nuevo_df = pd.read_excel(file)
         if set(["Producto", "Precio Unitario", "Proveedor", "Lugar Comercial"]).issubset(nuevo_df.columns):
-            st.session_state["insumos_df"] = pd.concat([
-                st.session_state["insumos_df"], nuevo_df
-            ], ignore_index=True)
-            guardar_insumos(st.session_state["insumos_df"])
-            st.success("Insumos cargados correctamente.")
+            st.session_state["insumos_df"] = nuevo_df  # Reemplaza los insumos actuales
+            guardar_insumos(st.session_state["insumos_df"])  # Guarda los nuevos insumos como predeterminados
+            st.success("Insumos cargados y guardados correctamente como predeterminados.")
         else:
             st.error("El archivo debe contener las columnas: 'Producto', 'Precio Unitario', 'Proveedor', 'Lugar Comercial'.")
     except Exception as e:
@@ -132,6 +131,7 @@ if not insumos_df.empty:
         file_name="insumos.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
+
 
 
 
