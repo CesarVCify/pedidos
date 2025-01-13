@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 from io import BytesIO
 
-
 # Configuración inicial de la página
 st.set_page_config(page_title="Gestión de Insumos", layout="wide")
 st.title("Gestión de Insumos")
@@ -107,6 +106,7 @@ if not insumos_df.empty:
         file_name="insumos.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
+
 
 
 
