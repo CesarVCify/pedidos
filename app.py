@@ -7,9 +7,15 @@ st.set_page_config(page_title="Gestión de Insumos", layout="wide")
 st.title("Gestión de Insumos")
 st.markdown("### Agrega, edita y elimina insumos de forma sencilla.")
 
-# Crear un DataFrame inicial vacío o con algunos insumos de ejemplo
+# Crear un DataFrame inicial con insumos predefinidos
 if "insumos_df" not in st.session_state:
-    st.session_state["insumos_df"] = pd.DataFrame(columns=["Producto", "Precio Unitario", "Proveedor", "Lugar Comercial"])
+    st.session_state["insumos_df"] = pd.DataFrame([
+        {"Producto": "Aceite en aerosol", "Precio Unitario": 53.0, "Proveedor": "Garis", "Lugar Comercial": "Garis"},
+        {"Producto": "Aceite Oliva", "Precio Unitario": 264.0, "Proveedor": "Garis", "Lugar Comercial": "Garis"},
+        {"Producto": "Aceite vegetal", "Precio Unitario": 40.0, "Proveedor": "Garis", "Lugar Comercial": "Garis"},
+        {"Producto": "Aceituna Kalamata", "Precio Unitario": 500.0, "Proveedor": "Costco", "Lugar Comercial": "Costco"},
+        {"Producto": "Aderezo balsámico", "Precio Unitario": 82.0, "Proveedor": "City Market", "Lugar Comercial": "City Market"}
+    ])
 
 # Función para agregar un nuevo insumo
 def agregar_insumo(producto, precio, proveedor, lugar_comercial):
@@ -106,6 +112,7 @@ if not insumos_df.empty:
         file_name="insumos.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
+
 
 
 
