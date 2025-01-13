@@ -16,7 +16,7 @@ if os.path.exists(INSUMOS_FILE):
     insumos_predeterminados = pd.read_csv(INSUMOS_FILE)
 else:
     insumos_predeterminados = pd.DataFrame([
-                {"Producto": "Aceite en aerosol", "Precio Unitario": 53.0, "Proveedor": "Garis", "Lugar Comercial": "Garis"},
+        {"Producto": "Aceite en aerosol", "Precio Unitario": 53.0, "Proveedor": "Garis", "Lugar Comercial": "Garis"},
         {"Producto": "Aceite Oliva", "Precio Unitario": 264.0, "Proveedor": "Garis", "Lugar Comercial": "Garis"},
         {"Producto": "Aceite vegetal", "Precio Unitario": 40.0, "Proveedor": "Garis", "Lugar Comercial": "Garis"},
         {"Producto": "Aceituna Kalamata", "Precio Unitario": 500.0, "Proveedor": "Costco", "Lugar Comercial": "Costco"},
@@ -151,40 +151,26 @@ with st.form("form_agregar_insumo"):
         else:
             st.error("Por favor, completa todos los campos antes de agregar un insumo.")
 
-# Mostrar y editar los insumos existentes
-st.markdown("#### Lista de Insumos")
-insumos_df = st.session_state["insumos_df"]
-if not insumos_df.empty:
-    edited = False
-    for index, row in insumos_df.iterrows():
-        with st.expander(f"{row['Producto']}"):
-            producto = st.text_input("Producto", value=row["Producto"], key=f"producto_{index}")
-            precio = st.number_input("Precio Unitario", value=row["Precio Unitario"], step=0.01, key=f"precio_{index}")
-            proveedor = st.text_input("Proveedor", value=row["Proveedor"], key=f"proveedor_{index}")
-            lugar_comercial = st.text_input("Lugar Comercial", value=row["Lugar Comercial"], key=f"lugar_comercial_{index}")
-
-            if st.button("Guardar cambios", key=f"guardar_{index}"):
-                st.session_state["insumos_df"].at[index, "Producto"] = producto
-                st.session_state["insumos_df"].at[index, "Precio Unitario"] = precio
-                st.session_state["insumos_df"].at[index, "Proveedor"] = proveedor
-                st.session_state["insumos_df"].at[index, "Lugar Comercial"] = lugar_comercial
-                edited = True
-
-            if st.button("Eliminar", key=f"eliminar_{index}"):
-                eliminar_insumo(index)
-                st.warning(f"Insumo '{producto}' eliminado correctamente.")
-
-    if edited:
-        guardar_predeterminados()
-        st.success("Cambios guardados correctamente.")
-else:
-    st.info("No hay insumos registrados.")
-
 # Sección para cargar insumos desde un archivo Excel
 st.markdown("#### Cargar Insumos desde un Archivo")
 cargar_file = st.file_uploader("Sube un archivo Excel con los insumos", type=["xlsx"])
 if cargar_file:
     cargar_insumos(cargar_file)
+
+# Mostrar y editar los insumos existentes
+st.markdown("#### Lista de Insumos")
+insumos_df = st.session_state["insumos_df"]
+if not insumos_df.empty:
+    st.dataframe(insumos_df)
+
+    # Seleccionar un insumo para eliminar
+    st.markdown("#### Eliminar Insumo")
+    index_to_delete = st.number_input("Índice del insumo a eliminar", min_value=0, max_value=len(insumos_df)-1, step=1, format="%d")
+    if st.button("Eliminar Insumo"):
+        eliminar_insumo(index_to_delete)
+        st.warning(f"Insumo en el índice {index_to_delete} eliminado correctamente.")
+else:
+    st.info("No hay insumos registrados.")
 
 # Botón para descargar insumos
 st.markdown("#### Descargar Insumos")
@@ -196,6 +182,7 @@ if not insumos_df.empty:
         file_name="insumos.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
+
 
 
 
