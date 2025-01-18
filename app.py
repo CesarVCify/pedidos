@@ -10,7 +10,7 @@ def get_gsheet():
     ]
     creds = Credentials.from_service_account_file("credentials.json", scopes=scope)
     client = gspread.authorize(creds)
-    sheet = client.open_by_url("URL_DE_TU_HOJA_DE_CALCULO")
+    sheet = client.open_by_url("https://docs.google.com/spreadsheets/d/106heHrtrvtaBVl13lvhqUzXlhLF7c3NFrbANXO1-FJk/edit?gid=119992261#gid=119992261")
     return sheet
 
 # Carga inicial de la hoja
