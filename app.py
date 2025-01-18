@@ -1,90 +1,62 @@
 import streamlit as st
-import pandas as pd
-from google.oauth2 import service_account
-from gspread_pandas import Spread, Client
+import gspread
+from google.oauth2.service_account import Credentials
 
-# Configuration
-st.set_page_config(page_title="Editor de Insumos", page_icon="📈", layout="wide")
+# Configuración de las credenciales
+def get_gsheet():
+    scope = [
+        "https://spreadsheets.google.com/feeds",
+        "https://www.googleapis.com/auth/drive",
+    ]
+    creds = Credentials.from_service_account_file("credentials.json", scopes=scope)
+    client = gspread.authorize(creds)
+    sheet = client.open_by_url("URL_DE_TU_HOJA_DE_CALCULO")
+    return sheet
 
-# Google Sheets Authentication
-scope = [
-    "https://spreadsheets.google.com/feeds",
-    "https://www.googleapis.com/auth/drive",
-]
-credentials = st.secrets["gcp_service_account"]
-credentials = service_account.Credentials.from_service_account_info(
-    credentials, scopes=scope
-)
-spread = Spread("Precio_insumos", creds=credentials)
+# Carga inicial de la hoja
+sheet = get_gsheet()
+worksheet = sheet.get_worksheet(0)  # Seleccionar la primera hoja
 
-def load_data(sheet_name):
-    """Load data from the specified Google Sheet."""
-    return spread.sheet_to_df(sheet=sheet_name)
+# Streamlit UI
+st.title("Gestión de Pedidos - Mekima")
 
-def save_data(sheet_name, df):
-    """Save data to the specified Google Sheet."""
-    spread.df_to_sheet(df, sheet=sheet_name, replace=True)
+# Mostrar tabla
+st.subheader("Pedidos Actuales")
+data = worksheet.get_all_records()
+if data:
+    st.write(data)
+else:
+    st.write("No hay pedidos registrados.")
 
-# Load data from Google Sheets
-sheet_name = "Hoja 1"
-st.title("Editor de Insumos")
+# Agregar un nuevo pedido
+st.subheader("Agregar Nuevo Pedido")
+col1, col2 = st.columns(2)
 
-try:
-    df = load_data(sheet_name)
-    st.success("Datos cargados correctamente")
-except Exception as e:
-    st.error(f"Error al cargar datos: {e}")
-    st.stop()
+with col1:
+    cliente = st.text_input("Nombre del Cliente")
+    producto = st.selectbox("Producto", ["Café", "Té", "Bebida Fría", "Desayuno"])
 
-# Display and edit data
-data = st.experimental_data_editor(
-    df,
-    use_container_width=True,
-    num_rows="dynamic",
-    key="editor",
-)
+with col2:
+    cantidad = st.number_input("Cantidad", min_value=1, step=1)
+    observaciones = st.text_area("Observaciones")
 
-# Add a new product
-st.subheader("Agregar un nuevo producto")
-
-with st.form("add_product_form"):
-    new_product = st.text_input("Producto")
-    new_lugar_comercial = st.text_input("Lugar Comercial")
-    new_proveedor = st.text_input("Proveedor")
-    new_precio_unitario = st.number_input("Precio Unitario", min_value=0.0, step=0.01)
-
-    submitted = st.form_submit_button("Agregar Producto")
-
-if submitted:
-    new_row = {
-        "Producto": new_product,
-        "Lugar Comercial": new_lugar_comercial,
-        "Proveedor": new_proveedor,
-        "Precio Unitario": new_precio_unitario,
-    }
-    df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
-    st.success("Producto agregado exitosamente.")
-
-# Delete a product
-st.subheader("Eliminar un producto")
-with st.form("delete_product_form"):
-    product_to_delete = st.text_input("Nombre del producto a eliminar")
-    delete_submitted = st.form_submit_button("Eliminar Producto")
-
-if delete_submitted:
-    if product_to_delete in df["Producto"].values:
-        df = df[df["Producto"] != product_to_delete]
-        st.success(f"Producto '{product_to_delete}' eliminado exitosamente.")
+if st.button("Agregar Pedido"):
+    if cliente and producto:
+        worksheet.append_row([cliente, producto, cantidad, observaciones])
+        st.success("Pedido agregado exitosamente.")
+        st.experimental_rerun()
     else:
-        st.error(f"Producto '{product_to_delete}' no encontrado.")
+        st.error("Por favor, completa todos los campos.")
 
-# Save the updated data
-if st.button("Guardar Cambios"):
-    try:
-        save_data(sheet_name, df)
-        st.success("Datos guardados correctamente")
-    except Exception as e:
-        st.error(f"Error al guardar datos: {e}")
+# Eliminar un pedido
+st.subheader("Eliminar Pedido")
+if data:
+    pedido_index = st.number_input("Número de Pedido", min_value=1, max_value=len(data), step=1)
+    if st.button("Eliminar Pedido"):
+        worksheet.delete_rows(pedido_index + 1)  # +1 para ajustar por el encabezado
+        st.success("Pedido eliminado exitosamente.")
+        st.experimental_rerun()
+
 
 
 
