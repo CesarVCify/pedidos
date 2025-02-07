@@ -33,6 +33,10 @@ def cargar_hoja(sheet_id):
     try:
         df = pd.read_csv(url)
         df.columns = [col.strip() for col in df.columns]  # Limpia espacios en los encabezados
+        
+        # Mostrar las columnas detectadas para depuración
+        st.write("Columnas detectadas en la hoja:", df.columns.tolist())
+
         return df
     except Exception as e:
         st.error(f"Error al cargar la hoja con ID {sheet_id}: {e}")
@@ -148,39 +152,3 @@ if st.button("Descargar pedidos"):
         file_name=nombre_csv,
         mime="text/csv",
     )
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
