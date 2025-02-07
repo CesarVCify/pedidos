@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import requests
 from datetime import datetime
 
 # Configuración de los IDs de las hojas de Google Sheets
@@ -10,9 +11,25 @@ def obtener_url_publica(sheet_id):
     """Genera la URL de exportación pública de una hoja de Google Sheets."""
     return f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv"
 
+def verificar_acceso(url):
+    """Verifica si la URL de Google Sheets es accesible."""
+    try:
+        response = requests.get(url)
+        if response.status_code == 200:
+            return True
+        else:
+            st.error(f"Error de acceso a la hoja: {response.status_code}")
+            return False
+    except requests.exceptions.RequestException as e:
+        st.error(f"Error de conexión: {e}")
+        return False
+
 def cargar_hoja(sheet_id):
     """Carga datos desde una hoja pública de Google Sheets."""
     url = obtener_url_publica(sheet_id)
+    if not verificar_acceso(url):
+        return pd.DataFrame()  # Retorna un DataFrame vacío si no puede acceder
+
     try:
         df = pd.read_csv(url)
         df.columns = [col.strip() for col in df.columns]  # Limpia espacios en los encabezados
@@ -131,6 +148,7 @@ if st.button("Descargar pedidos"):
         file_name=nombre_csv,
         mime="text/csv",
     )
+
 
 
 
