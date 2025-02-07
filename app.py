@@ -1,87 +1,136 @@
 import streamlit as st
-import gspread
-from google.oauth2.service_account import Credentials
+import pandas as pd
+from datetime import datetime
 
-# Configurar el acceso a la hoja de cálculo
-def connect_to_sheet():
-    scope = [
-        "https://spreadsheets.google.com/feeds",
-        "https://www.googleapis.com/auth/drive",
-    ]
-    creds = Credentials.from_service_account_file("credentials.json", scopes=scope)
-    client = gspread.authorize(creds)
-    sheet = client.open_by_url("https://docs.google.com/spreadsheets/d/106heHrtrvtaBVl13lvhqUzXlhLF7c3NFrbANXO1-FJk/edit?gid=119992261")
-    return sheet
+# Configuración de los IDs de las hojas de Google Sheets
+ID_PEDIDOS = "106heHrtrvtaBVl13lvhqUzXlhLF7c3NFrbANXO1-FJk"
+ID_CATALOGO = "1ERtd0fm2FY8-Pm72J3kl8J05T2ryG_fR91kOfPlPrfQ"
 
-# Función principal
-def main():
-    st.title("Sistema de Pedidos - Mekima")
+def obtener_url_publica(sheet_id):
+    """Genera la URL de exportación pública de una hoja de Google Sheets."""
+    return f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv"
 
-    # Conectar a la hoja de cálculo
+def cargar_hoja(sheet_id):
+    """Carga datos desde una hoja pública de Google Sheets."""
+    url = obtener_url_publica(sheet_id)
     try:
-        sheet = connect_to_sheet()
-        worksheet = sheet.get_worksheet(0)  # Primera hoja de la hoja de cálculo
+        df = pd.read_csv(url)
+        df.columns = [col.strip() for col in df.columns]  # Limpia espacios en los encabezados
+        return df
     except Exception as e:
-        st.error("No se pudo conectar a la hoja de cálculo. Revisa las credenciales o el enlace.")
-        st.stop()
+        st.error(f"Error al cargar la hoja con ID {sheet_id}: {e}")
+        return pd.DataFrame()
 
-    # Cargar los productos desde la hoja de cálculo
-    st.subheader("Productos Disponibles")
-    products = worksheet.get_all_records()
-    if not products:
-        st.warning("No hay productos disponibles.")
-        st.stop()
+# Cargar datos iniciales
+st.title("Gestión de Pedidos - Editar Pedidos")
+st.info("Los productos solo pueden seleccionarse del catálogo cargado desde Google Sheets.")
 
-    # Mostrar productos en una tabla
-    st.write("Lista de productos:")
-    st.table(products)
+pedidos_df = cargar_hoja(ID_PEDIDOS)
+catalogo_df = cargar_hoja(ID_CATALOGO)
 
-    # Selección de productos para un pedido
-    st.subheader("Generar Pedido")
-    product_names = [product["Nombre"] for product in products]  # Suponiendo que la columna se llama "Nombre"
-    selected_products = st.multiselect("Selecciona los productos:", product_names)
+if pedidos_df.empty or catalogo_df.empty:
+    st.warning("No se pudieron cargar los datos. Verifica que las hojas sean públicas y los IDs sean correctos.")
+    st.stop()
 
-    # Seleccionar cantidades para cada producto
-    order = []
-    for product_name in selected_products:
-        col1, col2 = st.columns(2)
-        with col1:
-            st.write(f"Producto: {product_name}")
-        with col2:
-            qty = st.number_input(f"Cantidad de {product_name}:", min_value=1, step=1, key=product_name)
-            order.append({"Producto": product_name, "Cantidad": qty})
+# Validar columnas requeridas
+columnas_requeridas = ["Producto", "Cantidad Solicitada", "Unidad", "Precio Unitario", "Total", "Proveedor"]
+faltantes = [col for col in columnas_requeridas if col not in pedidos_df.columns]
 
-    # Confirmar el pedido
-    if st.button("Confirmar Pedido"):
-        if order:
-            # Agregar el pedido a una nueva hoja llamada "Pedidos"
-            try:
-                orders_sheet = sheet.worksheet("Pedidos")
-            except gspread.exceptions.WorksheetNotFound:
-                orders_sheet = sheet.add_worksheet(title="Pedidos", rows="100", cols="10")
-                orders_sheet.append_row(["Producto", "Cantidad"])
+if faltantes:
+    st.error(f"Faltan las siguientes columnas en la hoja de pedidos: {faltantes}")
+    st.stop()
 
-            for item in order:
-                orders_sheet.append_row([item["Producto"], item["Cantidad"]])
-            st.success("Pedido generado exitosamente.")
-            st.experimental_rerun()
-        else:
-            st.warning("Por favor selecciona al menos un producto.")
+# Reemplazar valores nulos en "Proveedor"
+pedidos_df["Proveedor"] = pedidos_df["Proveedor"].fillna("Desconocido")
 
-    # Mostrar pedidos generados
-    st.subheader("Pedidos Generados")
-    try:
-        orders_sheet = sheet.worksheet("Pedidos")
-        orders = orders_sheet.get_all_records()
-        if orders:
-            st.table(orders)
-        else:
-            st.write("No hay pedidos generados.")
-    except gspread.exceptions.WorksheetNotFound:
-        st.write("Aún no se ha generado ningún pedido.")
+# Función para limpiar cantidades solicitadas
+def limpiar_cantidades(df):
+    df["Cantidad Solicitada"] = 0  # Reinicia todas las cantidades a 0
+    return df
 
-if __name__ == "__main__":
-    main()
+# Función para actualizar precios unitarios desde el catálogo
+def actualizar_precios(df_pedidos, df_catalogo):
+    precios = dict(zip(df_catalogo["Producto"], df_catalogo["Precio Unitario"]))
+    df_pedidos["Precio Unitario"] = df_pedidos["Producto"].map(precios)
+    df_pedidos["Precio Unitario"] = df_pedidos["Precio Unitario"].fillna(0.01)  # Valor predeterminado si no hay precio
+    return df_pedidos
+
+# Botón para limpiar datos
+if st.button("Limpiar Cantidades Solicitadas"):
+    pedidos_df = limpiar_cantidades(pedidos_df)
+    st.success("¡Cantidad solicitada reiniciada a 0 para todos los productos!")
+
+# Botón para actualizar precios
+if st.button("Actualizar Precios desde Catálogo"):
+    pedidos_df = actualizar_precios(pedidos_df, catalogo_df)
+    st.success("¡Precios unitarios actualizados desde el catálogo!")
+
+# Reemplazar valores inválidos
+pedidos_df["Cantidad Solicitada"] = pedidos_df["Cantidad Solicitada"].apply(lambda x: max(x, 0) if pd.notnull(x) else 0)
+pedidos_df["Precio Unitario"] = pedidos_df["Precio Unitario"].apply(lambda x: max(x, 0.01) if pd.notnull(x) else 0.01)
+
+# Restringir productos al catálogo
+productos_existentes = catalogo_df["Producto"].tolist()
+
+# Mostrar y editar pedidos agrupados por proveedor
+st.subheader("Pedidos agrupados por Proveedor")
+proveedores = pedidos_df["Proveedor"].unique()
+
+for proveedor in proveedores:
+    st.markdown(f"### Proveedor: {proveedor}")
+    proveedor_df = pedidos_df[pedidos_df["Proveedor"] == proveedor]
+
+    for index, row in proveedor_df.iterrows():
+        with st.expander(f"Editar Pedido: {row['Producto']}"):
+            # Producto (solo seleccionable desde el catálogo)
+            producto = st.selectbox(
+                "Producto",
+                options=productos_existentes,
+                index=productos_existentes.index(row["Producto"]) if row["Producto"] in productos_existentes else 0,
+                key=f"producto_{index}"
+            )
+            # Cantidad
+            cantidad = st.number_input(
+                "Cantidad Solicitada",
+                value=row["Cantidad Solicitada"],
+                min_value=0,
+                key=f"cantidad_{index}"
+            )
+            # Unidad
+            unidad = st.text_input(
+                "Unidad",
+                value=row["Unidad"],
+                key=f"unidad_{index}"
+            )
+            # Precio Unitario
+            precio_unitario = st.number_input(
+                "Precio Unitario",
+                value=row["Precio Unitario"],
+                min_value=0.01,
+                key=f"precio_{index}"
+            )
+
+            # Actualizar valores en el DataFrame
+            pedidos_df.at[index, "Producto"] = producto
+            pedidos_df.at[index, "Cantidad Solicitada"] = cantidad
+            pedidos_df.at[index, "Unidad"] = unidad
+            pedidos_df.at[index, "Precio Unitario"] = precio_unitario
+            pedidos_df.at[index, "Total"] = cantidad * precio_unitario
+
+# Mostrar la tabla actualizada
+st.subheader("Pedidos actualizados")
+st.dataframe(pedidos_df)
+
+# Descargar pedidos actualizados
+if st.button("Descargar pedidos"):
+    fecha_actual = datetime.now().strftime('%Y-%m-%d')
+    nombre_csv = f"Pedidos_Actualizados_{fecha_actual}.csv"
+    st.download_button(
+        label="Descargar CSV",
+        data=pedidos_df.to_csv(index=False).encode("utf-8"),
+        file_name=nombre_csv,
+        mime="text/csv",
+    )
 
 
 
